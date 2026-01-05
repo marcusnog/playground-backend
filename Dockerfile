@@ -14,7 +14,8 @@ COPY backend/package*.json ./
 COPY backend/prisma ./prisma/
 
 # Install dependencies
-RUN npm ci --include=dev
+# npm install works with or without package-lock.json
+RUN npm install --include=dev
 
 # Copy source code from backend
 COPY backend/ .
@@ -42,7 +43,7 @@ COPY backend/package*.json ./
 COPY backend/prisma ./prisma/
 
 # Install only production dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --only=production && npm cache clean --force
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
