@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: playground-backend
+    env: node
+    plan: starter
+    buildCommand: cd backend && npm ci && npm run prisma:generate && npm run build
+    startCommand: cd backend && npm run prisma:migrate:deploy && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: JWT_SECRET
+        sync: false  # Configure manualmente no painel
+      - key: DATABASE_URL
+        sync: false  # Configure manualmente no painel
+      - key: CORS_ORIGIN
+        sync: false  # Configure manualmente no painel
+

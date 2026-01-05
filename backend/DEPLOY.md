@@ -145,12 +145,26 @@ sudo systemctl start playground-backend
 
 ### Render
 
+**Opção 1: Usando Dockerfile (Recomendado)**
+
+1. Certifique-se de que o `Dockerfile` está na **raiz** do repositório
+2. Crie um novo Web Service no Render
+3. Conecte seu repositório
+4. Configure:
+   - **Environment**: `Docker`
+   - **Dockerfile Path**: `Dockerfile`
+5. Adicione variáveis de ambiente (veja `RENDER-DEPLOY.md` para detalhes)
+
+**Opção 2: Usando Build Commands**
+
 1. Crie um novo Web Service
-2. Conecte seu repositório
-3. Configure:
+2. Configure:
+   - **Root Directory**: `backend`
    - **Build Command**: `npm ci && npm run prisma:generate && npm run build`
-   - **Start Command**: `npm start`
-4. Adicione variáveis de ambiente
+   - **Start Command**: `npm run prisma:migrate:deploy && npm start`
+3. Adicione variáveis de ambiente
+
+📚 **Guia completo**: Veja `RENDER-DEPLOY.md` na raiz do projeto
 
 ### Heroku
 
