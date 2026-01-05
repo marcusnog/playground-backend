@@ -23,7 +23,7 @@ dotenv.config()
 validateEnv()
 
 const app = express()
-const PORT = process.env.PORT || 3001
+const PORT = Number(process.env.PORT) || 3001
 const NODE_ENV = process.env.NODE_ENV || 'development'
 
 // Trust proxy (important for production behind reverse proxy)
@@ -98,21 +98,30 @@ const server = app.listen(PORT, () => {
 })
 
 // Graceful shutdown
+let isShuttingDown = false
+
 const gracefulShutdown = async (signal: string) => {
+  if (isShuttingDown) {
+    return
+  }
+  
+  isShuttingDown = true
   logger.info(`${signal} received, shutting down gracefully`)
   
-  server.close(async () => {
+  // Stop accepting new connections
+  server.close(() => {
     logger.info('HTTP server closed')
     
-    try {
-      // Close Prisma connection
-      await prisma.$disconnect()
-      logger.info('Database connection closed')
-      process.exit(0)
-    } catch (err) {
-      logger.error('Error closing database connection', err)
-      process.exit(1)
-    }
+    // Close Prisma connection
+    prisma.$disconnect()
+      .then(() => {
+        logger.info('Database connection closed')
+        process.exit(0)
+      })
+      .catch((err: unknown) => {
+        logger.error('Error closing database connection', err)
+        process.exit(1)
+      })
   })
 
   // Force shutdown after 10 seconds
@@ -126,13 +135,13 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
 process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 
 // Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', (error: Error) => {
   logger.error('Uncaught exception', error)
   gracefulShutdown('uncaughtException')
 })
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
   logger.error('Unhandled rejection', { reason, promise })
   gracefulShutdown('unhandledRejection')
 })
