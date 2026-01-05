@@ -1,0 +1,19 @@
+# Arquivo de exemplo para override de configurações locais
+# Copie para docker-compose.override.yml para personalizar
+
+version: '3.8'
+
+services:
+  backend:
+    # Exemplo: alterar porta
+    # ports:
+    #   - "3002:3001"
+    
+    # Exemplo: adicionar variáveis de ambiente
+    # environment:
+    #   - DEBUG=*
+    
+    # Exemplo: adicionar volumes extras
+    # volumes:
+    #   - ./logs:/app/logs
+

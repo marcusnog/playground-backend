@@ -1,0 +1,174 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model FormaPagamento {
+  id        String @id @default(uuid())
+  descricao String
+  status    String // 'ativo' | 'inativo'
+  pixChave  String?
+  pixConta  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lancamentos            Lancamento[]
+  lancamentosEstacionamento LancamentoEstacionamento[]
+}
+
+model Brinquedo {
+  id                    String  @id @default(uuid())
+  nome                  String
+  inicialMinutos        Int?    // null = taxa única sem limite
+  valorInicial          Float
+  cicloMinutos          Int?    // null = não usa ciclos
+  valorCiclo            Float
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  lancamentos           Lancamento[]
+}
+
+model Parametros {
+  id                  String  @id @default("global")
+  valorInicialMinutos Int
+  valorInicialReais   Float
+  valorCicloMinutos   Int
+  valorCicloReais     Float
+  empresaNome         String?
+  empresaCnpj         String?
+  empresaLogoUrl      String?
+  pixChave            String?
+  pixCidade           String?
+  updatedAt           DateTime @updatedAt
+}
+
+model Caixa {
+  id          String  @id @default(uuid())
+  nome        String
+  data        String  // ISO date string
+  valorInicial Float
+  status      String  // 'aberto' | 'fechado'
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  movimentos          MovimentoCaixa[]
+  usuarios            Usuario[]
+  estacionamentos     Estacionamento[]
+}
+
+model MovimentoCaixa {
+  id        String   @id @default(uuid())
+  caixaId   String
+  dataHora  DateTime
+  tipo      String   // 'sangria' | 'suprimento'
+  valor     Float
+  motivo    String?
+  createdAt DateTime @default(now())
+
+  caixa     Caixa    @relation(fields: [caixaId], references: [id], onDelete: Cascade)
+}
+
+model Cliente {
+  id                String   @id @default(uuid())
+  nomeCompleto      String
+  dataNascimento    String   // ISO date
+  nomePai           String
+  nomeMae           String
+  telefoneWhatsapp  String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  lancamentos       Lancamento[]
+}
+
+model Lancamento {
+  id                  String   @id @default(uuid())
+  dataHora            DateTime
+  nomeCrianca         String
+  nomeResponsavel     String
+  tipoParente         String?  // pai, mae, avo, ava, tio, tia, outro
+  whatsappResponsavel String
+  numeroPulseira      String?
+  tempoSolicitadoMin  Int?     // null -> Tempo Livre
+  brinquedoId         String?
+  clienteId           String?
+  status              String   // 'aberto' | 'pago' | 'cancelado'
+  valorCalculado      Float
+  formaPagamentoId    String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  brinquedo           Brinquedo?        @relation(fields: [brinquedoId], references: [id])
+  cliente             Cliente?          @relation(fields: [clienteId], references: [id])
+  formaPagamento      FormaPagamento?   @relation(fields: [formaPagamentoId], references: [id])
+}
+
+model Usuario {
+  id                  String   @id @default(uuid())
+  nomeCompleto        String
+  apelido             String   @unique
+  contato             String
+  senha               String   // Hash bcrypt
+  usaCaixa            Boolean  @default(false)
+  caixaId             String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Permissões
+  acompanhamento      Boolean  @default(false)
+  lancamento          Boolean  @default(false)
+  caixaAbertura       Boolean  @default(false)
+  caixaFechamento     Boolean  @default(false)
+  caixaSangria        Boolean  @default(false)
+  caixaSuprimento     Boolean  @default(false)
+  estacionamentoCadastro Boolean @default(false)
+  estacionamentoCaixaAbertura Boolean @default(false)
+  estacionamentoCaixaFechamento Boolean @default(false)
+  estacionamentoLancamento Boolean @default(false)
+  estacionamentoAcompanhamento Boolean @default(false)
+  relatorios          Boolean  @default(false)
+  parametrosEmpresa   Boolean  @default(false)
+  parametrosFormasPagamento Boolean @default(false)
+  parametrosBrinquedos Boolean @default(false)
+  clientes            Boolean  @default(false)
+
+  caixa               Caixa?   @relation(fields: [caixaId], references: [id])
+}
+
+model Estacionamento {
+  id        String   @id @default(uuid())
+  nome      String
+  caixaId   String
+  valor     Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  caixa     Caixa    @relation(fields: [caixaId], references: [id], onDelete: Cascade)
+  lancamentos LancamentoEstacionamento[]
+}
+
+model LancamentoEstacionamento {
+  id                String   @id @default(uuid())
+  estacionamentoId  String
+  placa             String
+  modelo            String?
+  telefoneContato   String?
+  dataHora          DateTime
+  valor             Float
+  formaPagamentoId  String?
+  status            String   // 'aberto' | 'pago' | 'cancelado'
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  estacionamento    Estacionamento  @relation(fields: [estacionamentoId], references: [id], onDelete: Cascade)
+  formaPagamento    FormaPagamento? @relation(fields: [formaPagamentoId], references: [id])
+}
+

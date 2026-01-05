@@ -1,0 +1,14 @@
+src
+tsconfig.json
+tsconfig.prisma.json
+*.md
+!README.md
+.env
+.env.example
+.vscode
+.idea
+scripts
+data
+*.log
+.DS_Store
+
