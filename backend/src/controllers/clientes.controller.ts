@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/errorHandler'
 
 export const clientesController = {
-  async list(req: Request, res: Response) {
+  async list(_req: Request, res: Response) {
     const clientes = await prisma.cliente.findMany({
       orderBy: { nomeCompleto: 'asc' },
     })
@@ -69,10 +69,11 @@ export const clientesController = {
 
   async search(req: Request, res: Response) {
     const { query } = req.params
+    // SQLite doesn't support case-insensitive mode
     const clientes = await prisma.cliente.findMany({
       where: {
         OR: [
-          { nomeCompleto: { contains: query, mode: 'insensitive' } },
+          { nomeCompleto: { contains: query } },
           { telefoneWhatsapp: { contains: query } },
         ],
       },

@@ -15,7 +15,7 @@ export interface AuthRequest extends Request {
 
 export function authenticateToken(
   req: AuthRequest,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ) {
   const authHeader = req.headers['authorization']

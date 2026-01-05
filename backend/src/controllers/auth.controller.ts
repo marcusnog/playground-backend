@@ -13,11 +13,13 @@ export const authController = {
       throw new AppError(400, 'Username e senha são obrigatórios')
     }
 
+    // SQLite doesn't support case-insensitive mode, so we'll search normally
+    // For PostgreSQL, you can add mode: 'insensitive'
     const usuario = await prisma.usuario.findFirst({
       where: {
         OR: [
-          { apelido: { equals: username, mode: 'insensitive' } },
-          { nomeCompleto: { equals: username, mode: 'insensitive' } },
+          { apelido: username },
+          { nomeCompleto: username },
         ],
       },
     })

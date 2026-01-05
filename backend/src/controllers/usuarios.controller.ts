@@ -5,7 +5,7 @@ import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/errorHandler'
 
 export const usuariosController = {
-  async list(req: Request, res: Response) {
+  async list(_req: Request, res: Response) {
     const usuarios = await prisma.usuario.findMany({
       select: {
         id: true,
@@ -204,7 +204,7 @@ export const usuariosController = {
       apelido,
       contato,
       usaCaixa,
-      caixaId,
+      ...(caixaId !== undefined && { caixa: caixaId ? { connect: { id: caixaId } } : { disconnect: true } }),
       acompanhamento,
       lancamento,
       caixaAbertura,

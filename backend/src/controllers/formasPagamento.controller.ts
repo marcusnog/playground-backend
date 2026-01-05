@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/errorHandler'
 
 export const formasPagamentoController = {
-  async list(req: Request, res: Response) {
+  async list(_req: Request, res: Response) {
     const formas = await prisma.formaPagamento.findMany({
       orderBy: { descricao: 'asc' },
     })

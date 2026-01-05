@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/errorHandler'
 
 export const caixasController = {
-  async list(req: Request, res: Response) {
+  async list(_req: Request, res: Response) {
     const caixas = await prisma.caixa.findMany({
       orderBy: { data: 'desc' },
       include: {
@@ -15,7 +15,7 @@ export const caixasController = {
     res.json(caixas)
   },
 
-  async getAberto(req: Request, res: Response) {
+  async getAberto(_req: Request, res: Response) {
     const caixa = await prisma.caixa.findFirst({
       where: { status: 'aberto' },
       include: {

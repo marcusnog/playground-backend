@@ -48,7 +48,7 @@ app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
 // Request logging middleware
-app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((req: express.Request, _res: express.Response, next: express.NextFunction) => {
   logger.info(`${req.method} ${req.path}`, {
     ip: req.ip,
     userAgent: req.get('user-agent'),
@@ -57,7 +57,7 @@ app.use((req: express.Request, res: express.Response, next: express.NextFunction
 })
 
 // Health check endpoint
-app.get('/health', (req: express.Request, res: express.Response) => {
+app.get('/health', (_req: express.Request, res: express.Response) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),

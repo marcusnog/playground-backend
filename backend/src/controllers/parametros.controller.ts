@@ -1,9 +1,8 @@
 import { Request, Response } from 'express'
 import { prisma } from '../lib/prisma'
-import { AppError } from '../middleware/errorHandler'
 
 export const parametrosController = {
-  async get(req: Request, res: Response) {
+  async get(_req: Request, res: Response) {
     let parametros = await prisma.parametros.findUnique({
       where: { id: 'global' },
     })

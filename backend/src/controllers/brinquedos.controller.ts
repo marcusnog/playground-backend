@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/errorHandler'
 
 export const brinquedosController = {
-  async list(req: Request, res: Response) {
+  async list(_req: Request, res: Response) {
     const brinquedos = await prisma.brinquedo.findMany({
       orderBy: { nome: 'asc' },
     })

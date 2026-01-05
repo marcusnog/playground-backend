@@ -20,7 +20,7 @@ type PermissionKey =
   | 'parametrosBrinquedos'
   | 'clientes'
 
-function checkPermission(permissoes: AuthRequest['user']['permissoes'], permission: PermissionKey): boolean {
+function checkPermission(permissoes: NonNullable<AuthRequest['user']>['permissoes'], permission: PermissionKey): boolean {
   if (!permissoes) return false
 
   // Permissões simples
@@ -51,7 +51,7 @@ function checkPermission(permissoes: AuthRequest['user']['permissoes'], permissi
 }
 
 export function requirePermission(permission: PermissionKey) {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
+  return (req: AuthRequest, _res: Response, next: NextFunction) => {
     if (!req.user) {
       throw new AppError(401, 'Usuário não autenticado')
     }

@@ -5,7 +5,7 @@ import { AppError } from '../middleware/errorHandler'
 
 export const estacionamentosController = {
   // Estacionamentos
-  async list(req: Request, res: Response) {
+  async list(_req: Request, res: Response) {
     const estacionamentos = await prisma.estacionamento.findMany({
       include: {
         caixa: true,
@@ -81,8 +81,8 @@ export const estacionamentosController = {
   async getLancamentos(req: Request, res: Response) {
     const { status, data, estacionamentoId } = req.query
     const where: Prisma.LancamentoEstacionamentoWhereInput = {}
-    if (status) where.status = status
-    if (estacionamentoId) where.estacionamentoId = estacionamentoId as string
+    if (status) where.status = status as string
+    if (estacionamentoId) where.estacionamentoId = Array.isArray(estacionamentoId) ? estacionamentoId[0] as string : estacionamentoId as string
     if (data) {
       const startDate = new Date(data as string)
       startDate.setHours(0, 0, 0, 0)
@@ -105,7 +105,7 @@ export const estacionamentosController = {
     res.json(lancamentos)
   },
 
-  async getLancamentosAbertos(req: Request, res: Response) {
+  async getLancamentosAbertos(_req: Request, res: Response) {
     const lancamentos = await prisma.lancamentoEstacionamento.findMany({
       where: { status: 'aberto' },
       include: {
@@ -225,7 +225,7 @@ export const estacionamentosController = {
   },
 
   // Caixa
-  async getCaixaAbertura(req: Request, res: Response) {
+  async getCaixaAbertura(_req: Request, res: Response) {
     // Retorna informações sobre abertura de caixa de estacionamento
     // Por enquanto, retorna os estacionamentos disponíveis
     const estacionamentos = await prisma.estacionamento.findMany({
@@ -236,13 +236,13 @@ export const estacionamentosController = {
     res.json({ estacionamentos })
   },
 
-  async abrirCaixa(req: Request, res: Response) {
+  async abrirCaixa(_req: Request, res: Response) {
     // Abertura de caixa de estacionamento usa o mesmo sistema de caixas
     // Esta rota pode ser usada para lógica específica de estacionamento
     res.json({ message: 'Use a rota de abertura de caixa geral' })
   },
 
-  async fecharCaixa(req: Request, res: Response) {
+  async fecharCaixa(_req: Request, res: Response) {
     // Fechamento de caixa de estacionamento
     // Esta rota pode ser usada para lógica específica de estacionamento
     res.json({ message: 'Use a rota de fechamento de caixa geral' })

@@ -7,7 +7,7 @@ export const lancamentosController = {
   async list(req: Request, res: Response) {
     const { status, data } = req.query
     const where: Prisma.LancamentoWhereInput = {}
-    if (status) where.status = status
+    if (status) where.status = Array.isArray(status) ? status[0] as string : status as string
     if (data) {
       const startDate = new Date(data as string)
       startDate.setHours(0, 0, 0, 0)
@@ -31,7 +31,7 @@ export const lancamentosController = {
     res.json(lancamentos)
   },
 
-  async getAbertos(req: Request, res: Response) {
+  async getAbertos(_req: Request, res: Response) {
     const lancamentos = await prisma.lancamento.findMany({
       where: { status: 'aberto' },
       include: {
