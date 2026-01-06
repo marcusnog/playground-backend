@@ -59,13 +59,14 @@ async function main() {
 
   console.log('✅ Parâmetros criados')
 
-  // Criar usuário admin
-  const hashedPassword = await bcrypt.hash('admin', 10)
-  const admin = await prisma.usuario.upsert({
-    where: { apelido: 'admin' },
+  // Criar usuário master (administrador com todas as permissões)
+  const masterPassword = process.env.MASTER_PASSWORD || 'master123'
+  const hashedMasterPassword = await bcrypt.hash(masterPassword, 10)
+  const master = await prisma.usuario.upsert({
+    where: { apelido: 'master' },
     update: {
-      senha: hashedPassword,
-      // Garantir que admin sempre tenha todas as permissões
+      senha: hashedMasterPassword,
+      // Garantir que master sempre tenha todas as permissões
       acompanhamento: true,
       lancamento: true,
       caixaAbertura: true,
@@ -84,11 +85,10 @@ async function main() {
       clientes: true,
     },
     create: {
-      id: 'admin',
-      nomeCompleto: 'Administrador',
-      apelido: 'admin',
-      contato: 'admin@exemplo.com',
-      senha: hashedPassword,
+      nomeCompleto: 'Usuário Master',
+      apelido: 'master',
+      contato: 'master@playground.com',
+      senha: hashedMasterPassword,
       acompanhamento: true,
       lancamento: true,
       caixaAbertura: true,
@@ -108,7 +108,59 @@ async function main() {
     },
   })
 
-  console.log('✅ Usuário admin criado (apelido: admin, senha: admin)')
+  console.log(`✅ Usuário master criado (apelido: master, senha: ${masterPassword})`)
+  console.log('⚠️  IMPORTANTE: Altere a senha do master em produção!')
+
+  // Criar usuário admin (compatibilidade)
+  const adminPassword = process.env.ADMIN_PASSWORD || 'admin'
+  const hashedAdminPassword = await bcrypt.hash(adminPassword, 10)
+  const admin = await prisma.usuario.upsert({
+    where: { apelido: 'admin' },
+    update: {
+      senha: hashedAdminPassword,
+      // Garantir que admin sempre tenha todas as permissões
+      acompanhamento: true,
+      lancamento: true,
+      caixaAbertura: true,
+      caixaFechamento: true,
+      caixaSangria: true,
+      caixaSuprimento: true,
+      estacionamentoCadastro: true,
+      estacionamentoCaixaAbertura: true,
+      estacionamentoCaixaFechamento: true,
+      estacionamentoLancamento: true,
+      estacionamentoAcompanhamento: true,
+      relatorios: true,
+      parametrosEmpresa: true,
+      parametrosFormasPagamento: true,
+      parametrosBrinquedos: true,
+      clientes: true,
+    },
+    create: {
+      nomeCompleto: 'Administrador',
+      apelido: 'admin',
+      contato: 'admin@playground.com',
+      senha: hashedAdminPassword,
+      acompanhamento: true,
+      lancamento: true,
+      caixaAbertura: true,
+      caixaFechamento: true,
+      caixaSangria: true,
+      caixaSuprimento: true,
+      estacionamentoCadastro: true,
+      estacionamentoCaixaAbertura: true,
+      estacionamentoCaixaFechamento: true,
+      estacionamentoLancamento: true,
+      estacionamentoAcompanhamento: true,
+      relatorios: true,
+      parametrosEmpresa: true,
+      parametrosFormasPagamento: true,
+      parametrosBrinquedos: true,
+      clientes: true,
+    },
+  })
+
+  console.log(`✅ Usuário admin criado (apelido: admin, senha: ${adminPassword})`)
 
   console.log('🎉 Seed concluído com sucesso!')
 }
