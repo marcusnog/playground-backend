@@ -1,4 +1,4 @@
-#!/bin/bash
+?#!/bin/bash
 
 # Script para criar usuário master no banco de dados
 # Uso: ./scripts/create-master.sh [apelido] [senha] [nome-completo]

@@ -1,4 +1,22 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: playground-postgres
+    environment:
+      - POSTGRES_USER=playground
+      - POSTGRES_PASSWORD=playground123
+      - POSTGRES_DB=playground
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U playground"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
   backend:
     build:
       context: .
@@ -17,21 +35,28 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3001
-      - DATABASE_URL=file:./data/dev.db
+      - DATABASE_URL=postgresql://playground:playground123@postgres:5432/playground?schema=public
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     command: >
       sh -c "
         echo '🔧 Gerando Prisma Client...' &&
         npx prisma generate &&
         echo '🔧 Configurando banco de dados...' &&
-        mkdir -p /app/data &&
-        if npx prisma migrate deploy 2>/dev/null; then
-          echo '✅ Migrações aplicadas!'
+        echo '⏳ Aguardando PostgreSQL estar pronto...' &&
+        sleep 5 &&
+        if [ -d prisma/migrations ] && [ \"\$(ls -A prisma/migrations 2>/dev/null)\" ]; then
+          echo '📦 Aplicando migrações existentes...' &&
+          npx prisma migrate deploy || true
         else
-          echo '📦 Criando migrações iniciais...' &&
-          npx prisma migrate dev --name init --skip-seed || true
+          echo '📦 Sincronizando schema com banco de dados...' &&
+          npx prisma db push --accept-data-loss || true
         fi &&
+        echo '🌱 Executando seed (criando usuário master)...' &&
+        npm run prisma:seed || echo '⚠️  Seed falhou ou usuário master já existe' &&
         echo '✅ Banco de dados configurado!' &&
         echo '🚀 Iniciando servidor...' &&
         npm run dev
@@ -43,3 +68,5 @@ services:
       retries: 3
       start_period: 15s
 
+volumes:
+  postgres_data:
