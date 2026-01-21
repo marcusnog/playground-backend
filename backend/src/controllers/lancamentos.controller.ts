@@ -112,21 +112,25 @@ export const lancamentosController = {
       brinquedoId,
       clienteId,
       valorCalculado,
+      dataHora,
     } = req.body
+
+    // Preparar dados para atualização
+    const updateData: any = {}
+    if (nomeCrianca !== undefined) updateData.nomeCrianca = nomeCrianca
+    if (nomeResponsavel !== undefined) updateData.nomeResponsavel = nomeResponsavel
+    if (tipoParente !== undefined) updateData.tipoParente = tipoParente
+    if (whatsappResponsavel !== undefined) updateData.whatsappResponsavel = whatsappResponsavel
+    if (numeroPulseira !== undefined) updateData.numeroPulseira = numeroPulseira
+    if (tempoSolicitadoMin !== undefined) updateData.tempoSolicitadoMin = tempoSolicitadoMin
+    if (brinquedoId !== undefined) updateData.brinquedoId = brinquedoId
+    if (clienteId !== undefined) updateData.clienteId = clienteId
+    if (valorCalculado !== undefined) updateData.valorCalculado = valorCalculado
+    if (dataHora !== undefined) updateData.dataHora = new Date(dataHora)
 
     const lancamento = await prisma.lancamento.update({
       where: { id },
-      data: {
-        nomeCrianca,
-        nomeResponsavel,
-        tipoParente,
-        whatsappResponsavel,
-        numeroPulseira,
-        tempoSolicitadoMin,
-        brinquedoId,
-        clienteId,
-        valorCalculado,
-      },
+      data: updateData,
       include: {
         brinquedo: true,
         cliente: true,
