@@ -8,6 +8,9 @@ export const caixasRoutes = Router()
 caixasRoutes.get('/', authenticateToken, caixasController.list)
 caixasRoutes.get('/aberto', authenticateToken, caixasController.getAberto)
 caixasRoutes.get('/:id', authenticateToken, caixasController.getById)
+caixasRoutes.post('/', authenticateToken, caixasController.create)
+caixasRoutes.put('/:id', authenticateToken, caixasController.update)
+caixasRoutes.delete('/:id', authenticateToken, caixasController.delete)
 caixasRoutes.post(
   '/abertura',
   authenticateToken,

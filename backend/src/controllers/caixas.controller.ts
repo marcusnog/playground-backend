@@ -44,8 +44,45 @@ export const caixasController = {
   },
 
   async abrir(req: Request, res: Response) {
-    const { nome, data, valorInicial } = req.body
+    const { id, nome, data, valorInicial } = req.body
 
+    // Se forneceu ID, está tentando abrir um caixa existente
+    if (id) {
+      const caixa = await prisma.caixa.findUnique({
+        where: { id },
+      })
+
+      if (!caixa) {
+        throw new AppError(404, 'Caixa não encontrado')
+      }
+
+      if (caixa.status === 'aberto') {
+        throw new AppError(400, 'Caixa já está aberto')
+      }
+
+      // Verificar se já existe outro caixa aberto
+      const caixaAberto = await prisma.caixa.findFirst({
+        where: { status: 'aberto' },
+      })
+
+      if (caixaAberto) {
+        throw new AppError(400, 'Já existe um caixa aberto')
+      }
+
+      // Atualizar o caixa existente para aberto
+      const caixaAtualizado = await prisma.caixa.update({
+        where: { id },
+        data: {
+          status: 'aberto',
+          valorInicial: valorInicial !== undefined ? valorInicial : caixa.valorInicial,
+          data: data || caixa.data,
+        },
+      })
+
+      return res.json(caixaAtualizado)
+    }
+
+    // Se não forneceu ID, está criando um novo caixa
     if (!nome || !data || valorInicial === undefined) {
       throw new AppError(400, 'Nome, data e valor inicial são obrigatórios')
     }
@@ -176,6 +213,74 @@ export const caixasController = {
       orderBy: { dataHora: 'desc' },
     })
     res.json(movimentos)
+  },
+
+  async create(req: Request, res: Response) {
+    const { nome, data } = req.body
+
+    if (!nome) {
+      throw new AppError(400, 'Nome é obrigatório')
+    }
+
+    const caixa = await prisma.caixa.create({
+      data: {
+        nome,
+        data: data || new Date().toISOString().split('T')[0],
+        valorInicial: 0,
+        status: 'fechado',
+      },
+    })
+
+    res.status(201).json(caixa)
+  },
+
+  async update(req: Request, res: Response) {
+    const { id } = req.params
+    const { nome, data } = req.body
+
+    const caixa = await prisma.caixa.findUnique({
+      where: { id },
+    })
+
+    if (!caixa) {
+      throw new AppError(404, 'Caixa não encontrado')
+    }
+
+    if (caixa.status === 'aberto') {
+      throw new AppError(400, 'Não é possível editar um caixa aberto')
+    }
+
+    const caixaAtualizado = await prisma.caixa.update({
+      where: { id },
+      data: {
+        ...(nome && { nome }),
+        ...(data && { data }),
+      },
+    })
+
+    res.json(caixaAtualizado)
+  },
+
+  async delete(req: Request, res: Response) {
+    const { id } = req.params
+
+    const caixa = await prisma.caixa.findUnique({
+      where: { id },
+    })
+
+    if (!caixa) {
+      throw new AppError(404, 'Caixa não encontrado')
+    }
+
+    if (caixa.status === 'aberto') {
+      throw new AppError(400, 'Não é possível excluir um caixa aberto')
+    }
+
+    await prisma.caixa.delete({
+      where: { id },
+    })
+
+    res.status(204).send()
   },
 }
 
