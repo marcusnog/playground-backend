@@ -105,7 +105,7 @@ export const caixasController = {
       },
     })
 
-    res.status(201).json(caixa)
+    return res.status(201).json(caixa)
   },
 
   async fechar(req: Request, res: Response) {
