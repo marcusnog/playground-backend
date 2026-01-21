@@ -38,12 +38,14 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install only production dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install production dependencies + tsx for seed execution
+RUN npm ci --only=production && npm install tsx --save-dev && npm cache clean --force
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# Copy seed file for runtime execution
+COPY --from=builder /app/prisma/seed.ts ./prisma/seed.ts
 
 # Create directory for database with proper permissions
 RUN mkdir -p /app/data && \
@@ -62,6 +64,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start server with migration check
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
+# Start server with migration check and seed (to ensure master user exists)
+# O seed garante que o usuário master sempre exista em produção
+CMD ["sh", "-c", "npx prisma migrate deploy && (npx tsx prisma/seed.ts || echo 'Seed executado ou usuário master já existe') && node dist/server.js"]
 

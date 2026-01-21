@@ -108,8 +108,12 @@ async function main() {
     },
   })
 
-  console.log(`✅ Usuário master criado (apelido: master, senha: ${masterPassword})`)
-  console.log('⚠️  IMPORTANTE: Altere a senha do master em produção!')
+  console.log(`✅ Usuário master criado/atualizado (apelido: master, senha: ${masterPassword})`)
+  if (process.env.NODE_ENV === 'production') {
+    console.log('📝 Usuário master disponível para testes em produção')
+  } else {
+    console.log('⚠️  IMPORTANTE: Altere a senha do master em produção!')
+  }
 
   // Criar usuário admin (compatibilidade)
   const adminPassword = process.env.ADMIN_PASSWORD || 'admin'
