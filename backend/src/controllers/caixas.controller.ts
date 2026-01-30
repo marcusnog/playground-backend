@@ -60,15 +60,7 @@ export const caixasController = {
         throw new AppError(400, 'Caixa já está aberto')
       }
 
-      // Verificar se já existe outro caixa aberto
-      const caixaAberto = await prisma.caixa.findFirst({
-        where: { status: 'aberto' },
-      })
-
-      if (caixaAberto) {
-        throw new AppError(400, 'Já existe um caixa aberto')
-      }
-
+      // Permitir vários caixas abertos ao mesmo tempo (um por operador/terminal)
       // Atualizar o caixa existente para aberto
       const caixaAtualizado = await prisma.caixa.update({
         where: { id },
@@ -87,15 +79,7 @@ export const caixasController = {
       throw new AppError(400, 'Nome, data e valor inicial são obrigatórios')
     }
 
-    // Verificar se já existe caixa aberto
-    const caixaAberto = await prisma.caixa.findFirst({
-      where: { status: 'aberto' },
-    })
-
-    if (caixaAberto) {
-      throw new AppError(400, 'Já existe um caixa aberto')
-    }
-
+    // Permitir vários caixas abertos (criação de novo caixa)
     const caixa = await prisma.caixa.create({
       data: {
         nome,
