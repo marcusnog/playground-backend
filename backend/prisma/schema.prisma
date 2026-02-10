@@ -34,6 +34,7 @@ model Brinquedo {
   updatedAt             DateTime @updatedAt
 
   lancamentos           Lancamento[]
+  caixas                CaixaBrinquedo[]
 }
 
 model Parametros {
@@ -56,12 +57,22 @@ model Caixa {
   data        String  // ISO date string
   valorInicial Float
   status      String  // 'aberto' | 'fechado'
+  bloqueado   Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   movimentos          MovimentoCaixa[]
   usuarios            Usuario[]
   estacionamentos     Estacionamento[]
+  brinquedos          CaixaBrinquedo[]
+}
+
+model CaixaBrinquedo {
+  caixaId    String
+  brinquedoId String
+  caixa      Caixa    @relation(fields: [caixaId], references: [id], onDelete: Cascade)
+  brinquedo  Brinquedo @relation(fields: [brinquedoId], references: [id], onDelete: Cascade)
+  @@id([caixaId, brinquedoId])
 }
 
 model MovimentoCaixa {
@@ -119,6 +130,7 @@ model Usuario {
   senha               String   // Hash bcrypt
   usaCaixa            Boolean  @default(false)
   caixaId             String?
+  bloqueado           Boolean  @default(false)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

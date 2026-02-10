@@ -10,6 +10,9 @@ export const caixasController = {
         movimentos: {
           orderBy: { dataHora: 'desc' },
         },
+        brinquedos: {
+          include: { brinquedo: true },
+        },
       },
     })
     res.json(caixas)
@@ -21,6 +24,9 @@ export const caixasController = {
       include: {
         movimentos: {
           orderBy: { dataHora: 'desc' },
+        },
+        brinquedos: {
+          include: { brinquedo: true },
         },
       },
     })
@@ -34,6 +40,9 @@ export const caixasController = {
       include: {
         movimentos: {
           orderBy: { dataHora: 'desc' },
+        },
+        brinquedos: {
+          include: { brinquedo: true },
         },
       },
     })
@@ -58,6 +67,10 @@ export const caixasController = {
 
       if (caixa.status === 'aberto') {
         throw new AppError(400, 'Caixa já está aberto')
+      }
+
+      if ((caixa as { bloqueado?: boolean }).bloqueado) {
+        throw new AppError(400, 'Este caixa está bloqueado e não pode ser aberto.')
       }
 
       // Permitir vários caixas abertos ao mesmo tempo (um por operador/terminal)
@@ -200,7 +213,7 @@ export const caixasController = {
   },
 
   async create(req: Request, res: Response) {
-    const { nome, data } = req.body
+    const { nome, data, bloqueado, brinquedoIds } = req.body
 
     if (!nome) {
       throw new AppError(400, 'Nome é obrigatório')
@@ -212,15 +225,30 @@ export const caixasController = {
         data: data || new Date().toISOString().split('T')[0],
         valorInicial: 0,
         status: 'fechado',
+        bloqueado: !!bloqueado,
       },
     })
 
-    res.status(201).json(caixa)
+    const ids = Array.isArray(brinquedoIds) ? brinquedoIds.filter((id: unknown) => typeof id === 'string') : []
+    if (ids.length > 0) {
+      await prisma.caixaBrinquedo.createMany({
+        data: ids.map((brinquedoId: string) => ({ caixaId: caixa.id, brinquedoId })),
+      })
+    }
+
+    const created = await prisma.caixa.findUnique({
+      where: { id: caixa.id },
+      include: {
+        movimentos: true,
+        brinquedos: { include: { brinquedo: true } },
+      },
+    })
+    res.status(201).json(created || caixa)
   },
 
   async update(req: Request, res: Response) {
     const { id } = req.params
-    const { nome, data } = req.body
+    const { nome, data, bloqueado, brinquedoIds } = req.body
 
     const caixa = await prisma.caixa.findUnique({
       where: { id },
@@ -234,14 +262,33 @@ export const caixasController = {
       throw new AppError(400, 'Não é possível editar um caixa aberto')
     }
 
-    const caixaAtualizado = await prisma.caixa.update({
+    const dataUpdate: { nome?: string; data?: string; bloqueado?: boolean } = {}
+    if (nome !== undefined) dataUpdate.nome = nome
+    if (data !== undefined) dataUpdate.data = data
+    if (bloqueado !== undefined) dataUpdate.bloqueado = !!bloqueado
+
+    await prisma.caixa.update({
       where: { id },
-      data: {
-        ...(nome && { nome }),
-        ...(data && { data }),
-      },
+      data: dataUpdate,
     })
 
+    if (brinquedoIds !== undefined) {
+      await prisma.caixaBrinquedo.deleteMany({ where: { caixaId: id } })
+      const ids = Array.isArray(brinquedoIds) ? brinquedoIds.filter((bid: unknown) => typeof bid === 'string') : []
+      if (ids.length > 0) {
+        await prisma.caixaBrinquedo.createMany({
+          data: ids.map((brinquedoId: string) => ({ caixaId: id, brinquedoId })),
+        })
+      }
+    }
+
+    const caixaAtualizado = await prisma.caixa.findUnique({
+      where: { id },
+      include: {
+        movimentos: { orderBy: { dataHora: 'desc' } },
+        brinquedos: { include: { brinquedo: true } },
+      },
+    })
     res.json(caixaAtualizado)
   },
 

@@ -28,6 +28,10 @@ export const authController = {
       throw new AppError(401, 'Credenciais inválidas')
     }
 
+    if ((usuario as { bloqueado?: boolean }).bloqueado) {
+      throw new AppError(403, 'Usuário bloqueado. Contate o administrador.')
+    }
+
     const isValidPassword = await bcrypt.compare(password, usuario.senha)
     if (!isValidPassword) {
       throw new AppError(401, 'Credenciais inválidas')
