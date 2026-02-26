@@ -53,7 +53,13 @@ export const caixasController = {
   },
 
   async abrir(req: Request, res: Response) {
-    const { id, nome, data, valorInicial } = req.body
+    const { id, nome, valorInicial } = req.body
+    const dataHoraServidor = new Date().toISOString()
+
+    // Validar valor inicial (não pode ser negativo)
+    if (valorInicial !== undefined && (typeof valorInicial !== 'number' || valorInicial < 0)) {
+      throw new AppError(400, 'O valor inicial não pode ser negativo.')
+    }
 
     // Se forneceu ID, está tentando abrir um caixa existente
     if (id) {
@@ -74,13 +80,13 @@ export const caixasController = {
       }
 
       // Permitir vários caixas abertos ao mesmo tempo (um por operador/terminal)
-      // Atualizar o caixa existente para aberto
+      // Atualizar o caixa existente para aberto - sempre usar data/hora do servidor
       const caixaAtualizado = await prisma.caixa.update({
         where: { id },
         data: {
           status: 'aberto',
           valorInicial: valorInicial !== undefined ? valorInicial : caixa.valorInicial,
-          data: data || caixa.data,
+          data: dataHoraServidor,
         },
       })
 
@@ -88,15 +94,15 @@ export const caixasController = {
     }
 
     // Se não forneceu ID, está criando um novo caixa
-    if (!nome || !data || valorInicial === undefined) {
-      throw new AppError(400, 'Nome, data e valor inicial são obrigatórios')
+    if (!nome || valorInicial === undefined) {
+      throw new AppError(400, 'Nome e valor inicial são obrigatórios')
     }
 
-    // Permitir vários caixas abertos (criação de novo caixa)
+    // Permitir vários caixas abertos (criação de novo caixa) - sempre usar data/hora do servidor
     const caixa = await prisma.caixa.create({
       data: {
         nome,
-        data,
+        data: dataHoraServidor,
         valorInicial,
         status: 'aberto',
       },
