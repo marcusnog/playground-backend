@@ -5,27 +5,8 @@ import { requirePermission } from '../middleware/permissions'
 
 export const estacionamentosRoutes = Router()
 
-// Estacionamentos
+// Estacionamentos - rotas específicas antes da genérica /:id
 estacionamentosRoutes.get('/', authenticateToken, estacionamentosController.list)
-estacionamentosRoutes.get('/:id', authenticateToken, estacionamentosController.getById)
-estacionamentosRoutes.post(
-  '/',
-  authenticateToken,
-  requirePermission('estacionamentoCadastro'),
-  estacionamentosController.create
-)
-estacionamentosRoutes.put(
-  '/:id',
-  authenticateToken,
-  requirePermission('estacionamentoCadastro'),
-  estacionamentosController.update
-)
-estacionamentosRoutes.delete(
-  '/:id',
-  authenticateToken,
-  requirePermission('estacionamentoCadastro'),
-  estacionamentosController.delete
-)
 
 // Lançamentos de estacionamento
 estacionamentosRoutes.get(
@@ -80,5 +61,26 @@ estacionamentosRoutes.post(
   authenticateToken,
   requirePermission('estacionamentoCaixaFechamento'),
   estacionamentosController.fecharCaixa
+)
+
+// Rotas com parâmetro dinâmico (por último para não interceptar paths literais)
+estacionamentosRoutes.get('/:id', authenticateToken, estacionamentosController.getById)
+estacionamentosRoutes.post(
+  '/',
+  authenticateToken,
+  requirePermission('estacionamentoCadastro'),
+  estacionamentosController.create
+)
+estacionamentosRoutes.put(
+  '/:id',
+  authenticateToken,
+  requirePermission('estacionamentoCadastro'),
+  estacionamentosController.update
+)
+estacionamentosRoutes.delete(
+  '/:id',
+  authenticateToken,
+  requirePermission('estacionamentoCadastro'),
+  estacionamentosController.delete
 )
 
