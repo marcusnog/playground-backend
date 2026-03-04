@@ -24,31 +24,33 @@ model FormaPagamento {
 }
 
 model Brinquedo {
-  id                    String  @id @default(uuid())
-  nome                  String
-  inicialMinutos        Int?    // null = taxa única sem limite
-  valorInicial          Float
-  cicloMinutos          Int?    // null = não usa ciclos
-  valorCiclo            Float
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                     String  @id @default(uuid())
+  nome                   String
+  inicialMinutos         Int?    // null = taxa única sem limite
+  valorInicial           Float
+  cicloMinutos           Int?    // null = não usa ciclos
+  valorCiclo             Float
+  cicloToleranciaMinutos Int?    // min de tolerância no início de cada ciclo
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
-  lancamentos           Lancamento[]
-  caixas                CaixaBrinquedo[]
+  lancamentos            Lancamento[]
+  caixas                 CaixaBrinquedo[]
 }
 
 model Parametros {
-  id                  String  @id @default("global")
-  valorInicialMinutos Int
-  valorInicialReais   Float
-  valorCicloMinutos   Int
-  valorCicloReais     Float
-  empresaNome         String?
-  empresaCnpj         String?
-  empresaLogoUrl      String?
-  pixChave            String?
-  pixCidade           String?
-  updatedAt           DateTime @updatedAt
+  id                    String  @id @default("global")
+  valorInicialMinutos   Int
+  valorInicialReais     Float
+  valorCicloMinutos     Int
+  valorCicloReais       Float
+  cicloToleranciaMinutos Int?   // min de tolerância no início de cada ciclo (0 = cobra imediatamente)
+  empresaNome           String?
+  empresaCnpj           String?
+  empresaLogoUrl        String?
+  pixChave              String?
+  pixCidade             String?
+  updatedAt             DateTime @updatedAt
 }
 
 model Caixa {
