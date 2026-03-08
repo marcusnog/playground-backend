@@ -68,6 +68,7 @@ export const lancamentosController = {
       whatsappResponsavel,
       numeroPulseira,
       tempoSolicitadoMin,
+      quantidade,
       brinquedoId,
       clienteId,
       valorCalculado,
@@ -86,6 +87,7 @@ export const lancamentosController = {
         whatsappResponsavel,
         numeroPulseira,
         tempoSolicitadoMin,
+        quantidade,
         brinquedoId,
         clienteId,
         status: 'aberto',
@@ -109,9 +111,11 @@ export const lancamentosController = {
       whatsappResponsavel,
       numeroPulseira,
       tempoSolicitadoMin,
+      quantidade,
       brinquedoId,
       clienteId,
       valorCalculado,
+      valorDesconto,
       dataHora,
     } = req.body
 
@@ -123,9 +127,11 @@ export const lancamentosController = {
     if (whatsappResponsavel !== undefined) updateData.whatsappResponsavel = whatsappResponsavel
     if (numeroPulseira !== undefined) updateData.numeroPulseira = numeroPulseira
     if (tempoSolicitadoMin !== undefined) updateData.tempoSolicitadoMin = tempoSolicitadoMin
+    if (quantidade !== undefined) updateData.quantidade = quantidade
     if (brinquedoId !== undefined) updateData.brinquedoId = brinquedoId
     if (clienteId !== undefined) updateData.clienteId = clienteId
     if (valorCalculado !== undefined) updateData.valorCalculado = valorCalculado
+    if (valorDesconto !== undefined) updateData.valorDesconto = valorDesconto
     if (dataHora !== undefined) updateData.dataHora = new Date(dataHora)
 
     const lancamento = await prisma.lancamento.update({
@@ -143,7 +149,7 @@ export const lancamentosController = {
 
   async pagar(req: Request, res: Response) {
     const { id } = req.params
-    const { formaPagamentoId } = req.body
+    const { formaPagamentoId, valorCalculado, valorDesconto } = req.body
 
     const lancamento = await prisma.lancamento.findUnique({
       where: { id },
@@ -157,12 +163,16 @@ export const lancamentosController = {
       throw new AppError(400, 'Apenas lançamentos abertos podem ser pagos')
     }
 
+    const updateData: { status: string; formaPagamentoId: string; valorCalculado?: number; valorDesconto?: number } = {
+      status: 'pago',
+      formaPagamentoId,
+    }
+    if (valorCalculado !== undefined) updateData.valorCalculado = valorCalculado
+    if (valorDesconto !== undefined) updateData.valorDesconto = valorDesconto
+
     const lancamentoAtualizado = await prisma.lancamento.update({
       where: { id },
-      data: {
-        status: 'pago',
-        formaPagamentoId,
-      },
+      data: updateData,
       include: {
         brinquedo: true,
         cliente: true,

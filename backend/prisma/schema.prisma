@@ -110,11 +110,13 @@ model Lancamento {
   tipoParente         String?  // pai, mae, avo, ava, tio, tia, outro
   whatsappResponsavel String
   numeroPulseira      String?
-  tempoSolicitadoMin  Int?     // null -> Tempo Livre
+  tempoSolicitadoMin  Int?     // null -> Tempo Livre ou modo quantidade
+  quantidade          Int?     // número de pulseiras (modo TRENZINHO/INFLÁVEL)
   brinquedoId         String?
   clienteId           String?
   status              String   // 'aberto' | 'pago' | 'cancelado'
   valorCalculado      Float
+  valorDesconto       Float?   // valor do desconto aplicado (dos acréscimos)
   formaPagamentoId    String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -153,6 +155,7 @@ model Usuario {
   parametrosFormasPagamento Boolean @default(false)
   parametrosBrinquedos Boolean @default(false)
   clientes            Boolean  @default(false)
+  descontoAutorizado  Boolean  @default(false)  // pode autorizar desconto em pagamentos
 
   caixa               Caixa?   @relation(fields: [caixaId], references: [id])
 }

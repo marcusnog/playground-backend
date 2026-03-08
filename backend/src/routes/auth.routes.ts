@@ -6,4 +6,5 @@ export const authRoutes = Router()
 
 authRoutes.post('/login', authController.login)
 authRoutes.get('/me', authenticateToken, authController.getMe)
+authRoutes.post('/validar-desconto', authController.validarDesconto)
 

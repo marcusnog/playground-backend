@@ -84,6 +84,7 @@ async function main() {
       parametrosFormasPagamento: true,
       parametrosBrinquedos: true,
       clientes: true,
+      descontoAutorizado: true,
     },
     create: {
       nomeCompleto: 'Usuário Master',
@@ -106,6 +107,7 @@ async function main() {
       parametrosFormasPagamento: true,
       parametrosBrinquedos: true,
       clientes: true,
+      descontoAutorizado: true,
     },
   })
 
@@ -140,6 +142,7 @@ async function main() {
       parametrosFormasPagamento: true,
       parametrosBrinquedos: true,
       clientes: true,
+      descontoAutorizado: true,
     },
     create: {
       nomeCompleto: 'Administrador',
@@ -162,6 +165,7 @@ async function main() {
       parametrosFormasPagamento: true,
       parametrosBrinquedos: true,
       clientes: true,
+      descontoAutorizado: true,
     },
   })
 

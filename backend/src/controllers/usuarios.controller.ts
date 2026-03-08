@@ -31,6 +31,7 @@ export const usuariosController = {
         parametrosFormasPagamento: true,
         parametrosBrinquedos: true,
         clientes: true,
+        descontoAutorizado: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -102,6 +103,7 @@ export const usuariosController = {
       parametrosFormasPagamento,
       parametrosBrinquedos,
       clientes,
+      descontoAutorizado,
     } = req.body
 
     if (!nomeCompleto || !apelido || !senha) {
@@ -144,6 +146,7 @@ export const usuariosController = {
         parametrosFormasPagamento: parametrosFormasPagamento || false,
         parametrosBrinquedos: parametrosBrinquedos || false,
         clientes: clientes || false,
+        descontoAutorizado: descontoAutorizado || false,
       },
       select: {
         id: true,
@@ -168,6 +171,7 @@ export const usuariosController = {
         parametrosFormasPagamento: true,
         parametrosBrinquedos: true,
         clientes: true,
+        descontoAutorizado: true,
         bloqueado: true,
         createdAt: true,
         updatedAt: true,
@@ -203,6 +207,7 @@ export const usuariosController = {
       parametrosFormasPagamento,
       parametrosBrinquedos,
       clientes,
+      descontoAutorizado,
     } = req.body
 
     const updateData: Prisma.UsuarioUpdateInput = {
@@ -228,6 +233,7 @@ export const usuariosController = {
       parametrosFormasPagamento,
       parametrosBrinquedos,
       clientes,
+      descontoAutorizado,
     }
 
     // Se senha foi fornecida, hash ela
@@ -271,6 +277,7 @@ export const usuariosController = {
         parametrosFormasPagamento: true,
         parametrosBrinquedos: true,
         clientes: true,
+        descontoAutorizado: true,
         bloqueado: true,
         createdAt: true,
         updatedAt: true,
