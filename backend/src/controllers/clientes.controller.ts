@@ -61,6 +61,12 @@ export const clientesController = {
 
   async delete(req: Request, res: Response) {
     const { id } = req.params
+    const lancamentoAberto = await prisma.lancamento.findFirst({
+      where: { clienteId: id, status: 'aberto' },
+    })
+    if (lancamentoAberto) {
+      throw new AppError(400, 'Não é possível excluir cliente com acompanhamento em andamento. Encerre ou cancele o lançamento antes.')
+    }
     await prisma.cliente.delete({
       where: { id },
     })
