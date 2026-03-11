@@ -33,15 +33,16 @@ export function authenticateToken(
   try {
     const decoded = jwt.verify(token, jwtSecret) as AuthRequest['user']
     if (!decoded) {
-      throw new AppError(403, 'Token inválido')
+      throw new AppError(401, 'Token inválido')
     }
     req.user = decoded
     next()
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof AppError) {
       throw error
     }
-    throw new AppError(403, 'Token inválido ou expirado')
+    const isExpired = error && typeof error === 'object' && 'name' in error && (error as { name?: string }).name === 'TokenExpiredError'
+    throw new AppError(401, isExpired ? 'Token expirado. Faça login novamente.' : 'Token inválido.')
   }
 }
 
