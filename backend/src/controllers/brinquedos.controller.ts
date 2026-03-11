@@ -63,6 +63,12 @@ export const brinquedosController = {
 
   async delete(req: Request, res: Response) {
     const { id } = req.params
+    const lancamentoAberto = await prisma.lancamento.findFirst({
+      where: { brinquedoId: id, status: 'aberto' },
+    })
+    if (lancamentoAberto) {
+      throw new AppError(400, 'Não é possível excluir brinquedo com acompanhamento em andamento. Encerre ou cancele o lançamento antes.')
+    }
     await prisma.brinquedo.delete({
       where: { id },
     })
