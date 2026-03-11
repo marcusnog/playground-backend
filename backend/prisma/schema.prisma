@@ -111,6 +111,8 @@ model Lancamento {
   whatsappResponsavel String
   numeroPulseira      String?
   tempoSolicitadoMin  Int?     // null -> Tempo Livre ou modo quantidade
+  tempoInicialMin     Int?     // minutos do bloco inicial
+  tempoAdicionalMin   Int?     // minutos adicionais (total = tempoInicialMin + tempoAdicionalMin)
   quantidade          Int?     // número de pulseiras (modo TRENZINHO/INFLÁVEL)
   brinquedoId         String?
   clienteId           String?

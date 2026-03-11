@@ -68,6 +68,8 @@ export const lancamentosController = {
       whatsappResponsavel,
       numeroPulseira,
       tempoSolicitadoMin,
+      tempoInicialMin,
+      tempoAdicionalMin,
       quantidade,
       brinquedoId,
       clienteId,
@@ -78,6 +80,11 @@ export const lancamentosController = {
       throw new AppError(400, 'Campos obrigatórios não fornecidos')
     }
 
+    const hasTempoInicialOuAdicional = tempoInicialMin != null || tempoAdicionalMin != null
+    const tempoTotal = hasTempoInicialOuAdicional
+      ? (tempoInicialMin ?? 0) + (tempoAdicionalMin ?? 0)
+      : tempoSolicitadoMin
+
     const lancamento = await prisma.lancamento.create({
       data: {
         dataHora: dataHora ? new Date(dataHora) : new Date(),
@@ -86,7 +93,9 @@ export const lancamentosController = {
         tipoParente,
         whatsappResponsavel,
         numeroPulseira,
-        tempoSolicitadoMin,
+        tempoSolicitadoMin: tempoTotal,
+        tempoInicialMin: tempoInicialMin ?? undefined,
+        tempoAdicionalMin: tempoAdicionalMin ?? undefined,
         quantidade,
         brinquedoId,
         clienteId,
@@ -111,6 +120,8 @@ export const lancamentosController = {
       whatsappResponsavel,
       numeroPulseira,
       tempoSolicitadoMin,
+      tempoInicialMin,
+      tempoAdicionalMin,
       quantidade,
       brinquedoId,
       clienteId,
@@ -127,6 +138,8 @@ export const lancamentosController = {
     if (whatsappResponsavel !== undefined) updateData.whatsappResponsavel = whatsappResponsavel
     if (numeroPulseira !== undefined) updateData.numeroPulseira = numeroPulseira
     if (tempoSolicitadoMin !== undefined) updateData.tempoSolicitadoMin = tempoSolicitadoMin
+    if (tempoInicialMin !== undefined) updateData.tempoInicialMin = tempoInicialMin
+    if (tempoAdicionalMin !== undefined) updateData.tempoAdicionalMin = tempoAdicionalMin
     if (quantidade !== undefined) updateData.quantidade = quantidade
     if (brinquedoId !== undefined) updateData.brinquedoId = brinquedoId
     if (clienteId !== undefined) updateData.clienteId = clienteId
