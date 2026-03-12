@@ -24,11 +24,16 @@ model FormaPagamento {
 }
 
 model Cortesia {
-  id           String   @id @default(uuid())
-  codigo       String   @unique
-  usado        Boolean  @default(false)
-  lancamentoId String?
-  createdAt    DateTime @default(now())
+  id             String   @id @default(uuid())
+  codigo         String   @unique
+  usado          Boolean  @default(false)
+  lancamentoId   String?
+  clienteId      String?
+  whatsappDestino String
+  validadeDias   Int
+  createdAt      DateTime @default(now())
+
+  cliente        Cliente? @relation(fields: [clienteId], references: [id])
 
   @@index([codigo])
 }
@@ -110,6 +115,7 @@ model Cliente {
   updatedAt         DateTime @updatedAt
 
   lancamentos       Lancamento[]
+  cortesias         Cortesia[]
 }
 
 model Lancamento {
