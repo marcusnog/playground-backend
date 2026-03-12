@@ -11,6 +11,7 @@ import { clientesRoutes } from './routes/clientes.routes'
 import { usuariosRoutes } from './routes/usuarios.routes'
 import { lancamentosRoutes } from './routes/lancamentos.routes'
 import { estacionamentosRoutes } from './routes/estacionamentos.routes'
+import { cortesiasRoutes } from './routes/cortesias.routes'
 import { errorHandler } from './middleware/errorHandler'
 import { logger } from './lib/logger'
 import { validateEnv } from './lib/env'
@@ -77,6 +78,7 @@ app.use('/api/clientes', clientesRoutes)
 app.use('/api/usuarios', usuariosRoutes)
 app.use('/api/lancamentos', lancamentosRoutes)
 app.use('/api/estacionamentos', estacionamentosRoutes)
+app.use('/api/cortesias', cortesiasRoutes)
 
 // 404 handler
 app.use((req: express.Request, res: express.Response) => {

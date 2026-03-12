@@ -162,7 +162,7 @@ export const lancamentosController = {
 
   async pagar(req: Request, res: Response) {
     const { id } = req.params
-    const { formaPagamentoId, valorCalculado, valorDesconto } = req.body
+    const { formaPagamentoId, valorCalculado, valorDesconto, codigoCortesia } = req.body
 
     const lancamento = await prisma.lancamento.findUnique({
       where: { id },
@@ -174,6 +174,29 @@ export const lancamentosController = {
 
     if (lancamento.status !== 'aberto') {
       throw new AppError(400, 'Apenas lançamentos abertos podem ser pagos')
+    }
+
+    const formaPag = await prisma.formaPagamento.findUnique({
+      where: { id: formaPagamentoId },
+    })
+    const isCortesia = formaPag?.descricao?.toLowerCase().includes('cortesia')
+
+    if (isCortesia) {
+      const codigo = String(codigoCortesia || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+      if (codigo.length !== 8) {
+        throw new AppError(400, 'Informe o código de cortesia de 8 dígitos')
+      }
+      const cortesia = await prisma.cortesia.findUnique({ where: { codigo } })
+      if (!cortesia) {
+        throw new AppError(400, 'Código de cortesia não encontrado')
+      }
+      if (cortesia.usado) {
+        throw new AppError(400, 'Este código de cortesia já foi utilizado')
+      }
+      await prisma.cortesia.update({
+        where: { id: cortesia.id },
+        data: { usado: true, lancamentoId: id },
+      })
     }
 
     const updateData: { status: string; formaPagamentoId: string; valorCalculado?: number; valorDesconto?: number } = {

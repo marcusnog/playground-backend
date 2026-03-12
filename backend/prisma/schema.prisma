@@ -23,6 +23,16 @@ model FormaPagamento {
   lancamentosEstacionamento LancamentoEstacionamento[]
 }
 
+model Cortesia {
+  id           String   @id @default(uuid())
+  codigo       String   @unique
+  usado        Boolean  @default(false)
+  lancamentoId String?
+  createdAt    DateTime @default(now())
+
+  @@index([codigo])
+}
+
 model Brinquedo {
   id                     String  @id @default(uuid())
   nome                   String
@@ -158,6 +168,7 @@ model Usuario {
   parametrosBrinquedos Boolean @default(false)
   clientes            Boolean  @default(false)
   descontoAutorizado  Boolean  @default(false)  // pode autorizar desconto em pagamentos
+  cortesia            Boolean  @default(false)  // pode gerar códigos de cortesia
 
   caixa               Caixa?   @relation(fields: [caixaId], references: [id])
 }

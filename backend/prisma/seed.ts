@@ -35,6 +35,15 @@ async function main() {
         status: 'ativo',
       },
     }),
+    prisma.formaPagamento.upsert({
+      where: { id: 'cortesia' },
+      update: {},
+      create: {
+        id: 'cortesia',
+        descricao: 'Cortesia',
+        status: 'ativo',
+      },
+    }),
   ])
 
   console.log(`✅ Criadas ${formasPagamento.length} formas de pagamento`)
@@ -85,6 +94,7 @@ async function main() {
       parametrosBrinquedos: true,
       clientes: true,
       descontoAutorizado: true,
+      cortesia: true,
     },
     create: {
       nomeCompleto: 'Usuário Master',
@@ -108,6 +118,7 @@ async function main() {
       parametrosBrinquedos: true,
       clientes: true,
       descontoAutorizado: true,
+      cortesia: true,
     },
   })
 
@@ -143,6 +154,7 @@ async function main() {
       parametrosBrinquedos: true,
       clientes: true,
       descontoAutorizado: true,
+      cortesia: true,
     },
     create: {
       nomeCompleto: 'Administrador',
@@ -166,6 +178,7 @@ async function main() {
       parametrosBrinquedos: true,
       clientes: true,
       descontoAutorizado: true,
+      cortesia: true,
     },
   })
 

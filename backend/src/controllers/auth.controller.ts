@@ -69,6 +69,7 @@ export const authController = {
       },
       clientes: usuario.clientes,
       descontoAutorizado: (usuario as { descontoAutorizado?: boolean }).descontoAutorizado,
+      cortesia: (usuario as { cortesia?: boolean }).cortesia ?? false,
     }
 
     const token = jwt.sign(
@@ -128,6 +129,7 @@ export const authController = {
         parametrosBrinquedos: true,
         clientes: true,
         descontoAutorizado: true,
+        cortesia: true,
       },
     })
 
@@ -161,6 +163,7 @@ export const authController = {
       },
       clientes: usuario.clientes,
       descontoAutorizado: usuario.descontoAutorizado,
+      cortesia: (usuario as { cortesia?: boolean }).cortesia ?? false,
     }
 
     res.json({
