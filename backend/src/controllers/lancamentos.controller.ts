@@ -160,7 +160,7 @@ export const lancamentosController = {
     res.json(lancamento)
   },
 
-  async pagar(req: Request, res: Response) {
+  async pagar(req: Request, res: Response): Promise<void> {
     const { id } = req.params
     const { formaPagamentoId, valorCalculado, valorDesconto, codigoCortesia, pagamentos } = req.body as {
       formaPagamentoId?: string
@@ -229,7 +229,8 @@ export const lancamentosController = {
         },
       })
 
-      return res.json(lancamentoAtualizado)
+      res.json(lancamentoAtualizado)
+      return
     }
 
     if (!formaPagamentoId) {
@@ -277,6 +278,7 @@ export const lancamentosController = {
     })
 
     res.json(lancamentoAtualizado)
+    return
   },
 
   async cancelar(req: Request, res: Response) {
