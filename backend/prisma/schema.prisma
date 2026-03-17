@@ -136,6 +136,7 @@ model Lancamento {
   valorCalculado      Float
   valorDesconto       Float?   // valor do desconto aplicado (dos acréscimos)
   formaPagamentoId    String?
+  pagamentosJson      String?  // JSON com múltiplas formas (formaPagamentoId/descricao/valor)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

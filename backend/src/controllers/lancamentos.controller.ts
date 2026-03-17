@@ -162,7 +162,13 @@ export const lancamentosController = {
 
   async pagar(req: Request, res: Response) {
     const { id } = req.params
-    const { formaPagamentoId, valorCalculado, valorDesconto, codigoCortesia } = req.body
+    const { formaPagamentoId, valorCalculado, valorDesconto, codigoCortesia, pagamentos } = req.body as {
+      formaPagamentoId?: string
+      valorCalculado?: number
+      valorDesconto?: number
+      codigoCortesia?: string
+      pagamentos?: Array<{ formaPagamentoId: string; valor: number }>
+    }
 
     const lancamento = await prisma.lancamento.findUnique({
       where: { id },
@@ -174,6 +180,60 @@ export const lancamentosController = {
 
     if (lancamento.status !== 'aberto') {
       throw new AppError(400, 'Apenas lançamentos abertos podem ser pagos')
+    }
+
+    // Quando informado, usa múltiplas formas (split payment)
+    if (Array.isArray(pagamentos) && pagamentos.length > 0) {
+      const limpos = pagamentos
+        .filter(p => p && typeof p.formaPagamentoId === 'string' && typeof p.valor === 'number')
+        .map(p => ({ formaPagamentoId: p.formaPagamentoId, valor: Number(p.valor) }))
+        .filter(p => p.formaPagamentoId && isFinite(p.valor) && p.valor >= 0)
+
+      if (limpos.length === 0) {
+        throw new AppError(400, 'Informe ao menos uma forma de pagamento válida')
+      }
+
+      const soma = limpos.reduce((s, p) => s + p.valor, 0)
+      const esperado = typeof valorCalculado === 'number' ? valorCalculado : lancamento.valorCalculado
+      if (Math.abs(soma - esperado) > 0.01) {
+        throw new AppError(400, `A soma das formas de pagamento (R$ ${soma.toFixed(2)}) deve ser igual ao valor do pagamento (R$ ${esperado.toFixed(2)})`)
+      }
+
+      const formas = await prisma.formaPagamento.findMany({
+        where: { id: { in: limpos.map(p => p.formaPagamentoId) } },
+        select: { id: true, descricao: true },
+      })
+      const map = new Map(formas.map(f => [f.id, f.descricao]))
+      if (formas.length !== new Set(limpos.map(p => p.formaPagamentoId)).size) {
+        throw new AppError(400, 'Uma ou mais formas de pagamento não foram encontradas')
+      }
+
+      const pagamentosJson = JSON.stringify(
+        limpos.map(p => ({ formaPagamentoId: p.formaPagamentoId, descricao: map.get(p.formaPagamentoId) || p.formaPagamentoId, valor: p.valor }))
+      )
+
+      const updateData: { status: string; formaPagamentoId?: string; pagamentosJson?: string; valorCalculado?: number; valorDesconto?: number } = {
+        status: 'pago',
+        pagamentosJson,
+      }
+      if (typeof valorCalculado === 'number') updateData.valorCalculado = valorCalculado
+      if (typeof valorDesconto === 'number') updateData.valorDesconto = valorDesconto
+
+      const lancamentoAtualizado = await prisma.lancamento.update({
+        where: { id },
+        data: updateData,
+        include: {
+          brinquedo: true,
+          cliente: true,
+          formaPagamento: true,
+        },
+      })
+
+      return res.json(lancamentoAtualizado)
+    }
+
+    if (!formaPagamentoId) {
+      throw new AppError(400, 'Informe a forma de pagamento')
     }
 
     const formaPag = await prisma.formaPagamento.findUnique({
