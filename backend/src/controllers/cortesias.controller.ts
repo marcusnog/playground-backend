@@ -17,6 +17,26 @@ function normalizarWhatsapp(val: string): string {
 }
 
 export const cortesiasController = {
+  async list(req: AuthRequest, res: Response) {
+    const permissoes = req.user?.permissoes
+    if (!permissoes?.cortesia) {
+      throw new AppError(403, 'Permissão negada: você não pode listar cortesias')
+    }
+
+    const rawLimit = (req.query?.limit as string | undefined) ?? '200'
+    const limit = Math.max(1, Math.min(500, parseInt(String(rawLimit), 10) || 200))
+
+    const itens = await prisma.cortesia.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: {
+        cliente: { select: { id: true, nomeCompleto: true, telefoneWhatsapp: true } },
+      },
+    })
+
+    res.json(itens)
+  },
+
   async gerar(req: AuthRequest, res: Response) {
     const permissoes = req.user?.permissoes
     if (!permissoes?.cortesia) {
