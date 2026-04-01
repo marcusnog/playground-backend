@@ -162,10 +162,11 @@ export const lancamentosController = {
 
   async pagar(req: Request, res: Response): Promise<void> {
     const { id } = req.params
-    const { formaPagamentoId, valorCalculado, valorDesconto, codigoCortesia, pagamentos } = req.body as {
+    const { formaPagamentoId, valorCalculado, valorDesconto, valorRecebido, codigoCortesia, pagamentos } = req.body as {
       formaPagamentoId?: string
       valorCalculado?: number
       valorDesconto?: number
+      valorRecebido?: number
       codigoCortesia?: string
       pagamentos?: Array<{ formaPagamentoId: string; valor: number }>
     }
@@ -212,12 +213,13 @@ export const lancamentosController = {
         limpos.map(p => ({ formaPagamentoId: p.formaPagamentoId, descricao: map.get(p.formaPagamentoId) || p.formaPagamentoId, valor: p.valor }))
       )
 
-      const updateData: { status: string; formaPagamentoId?: string; pagamentosJson?: string; valorCalculado?: number; valorDesconto?: number } = {
+      const updateData: { status: string; formaPagamentoId?: string; pagamentosJson?: string; valorCalculado?: number; valorDesconto?: number; valorRecebido?: number } = {
         status: 'pago',
         pagamentosJson,
       }
       if (typeof valorCalculado === 'number') updateData.valorCalculado = valorCalculado
       if (typeof valorDesconto === 'number') updateData.valorDesconto = valorDesconto
+      if (typeof valorRecebido === 'number') updateData.valorRecebido = valorRecebido
 
       const lancamentoAtualizado = await prisma.lancamento.update({
         where: { id },
