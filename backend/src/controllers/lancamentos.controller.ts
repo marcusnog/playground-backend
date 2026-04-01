@@ -302,6 +302,7 @@ export const lancamentosController = {
       where: { id },
       data: {
         status: 'cancelado',
+        valorCalculado: 0,
       },
       include: {
         brinquedo: true,

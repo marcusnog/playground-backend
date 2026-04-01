@@ -212,5 +212,29 @@ export const authController = {
 
     res.json({ ok: true })
   },
+
+  async validarAdmin(req: Request, res: Response) {
+    const { apelido, password } = req.body
+
+    if (!apelido || !password) {
+      throw new AppError(400, 'Apelido e senha são obrigatórios')
+    }
+
+    const usuario = await prisma.usuario.findFirst({
+      where: { OR: [{ apelido }, { nomeCompleto: apelido }] },
+    })
+
+    if (!usuario) throw new AppError(401, 'Credenciais inválidas')
+    if ((usuario as { bloqueado?: boolean }).bloqueado) throw new AppError(403, 'Usuário bloqueado.')
+
+    const isValidPassword = await bcrypt.compare(password, usuario.senha)
+    if (!isValidPassword) throw new AppError(401, 'Credenciais inválidas')
+
+    if (!(usuario as { parametrosEmpresa?: boolean }).parametrosEmpresa) {
+      throw new AppError(403, 'Este usuário não tem permissão de administrador')
+    }
+
+    res.json({ ok: true })
+  },
 }
 
