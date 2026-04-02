@@ -22,7 +22,7 @@ export const brinquedosController = {
   },
 
   async create(req: Request, res: Response) {
-    const { nome, inicialMinutos, valorInicial, cicloMinutos, valorCiclo, cicloToleranciaMinutos } = req.body
+    const { nome, inicialMinutos, valorInicial, cicloMinutos, valorCiclo, cicloToleranciaMinutos, valorCiclo2, cicloTier2Minutos } = req.body
 
     if (!nome || valorInicial === undefined) {
       throw new AppError(400, 'Nome e valor inicial são obrigatórios')
@@ -36,6 +36,8 @@ export const brinquedosController = {
         cicloMinutos,
         valorCiclo: valorCiclo || 0,
         cicloToleranciaMinutos,
+        valorCiclo2: valorCiclo2 ?? null,
+        cicloTier2Minutos: cicloTier2Minutos ?? null,
       },
     })
 
@@ -44,7 +46,7 @@ export const brinquedosController = {
 
   async update(req: Request, res: Response) {
     const { id } = req.params
-    const { nome, inicialMinutos, valorInicial, cicloMinutos, valorCiclo, cicloToleranciaMinutos } = req.body
+    const { nome, inicialMinutos, valorInicial, cicloMinutos, valorCiclo, cicloToleranciaMinutos, valorCiclo2, cicloTier2Minutos } = req.body
 
     const brinquedo = await prisma.brinquedo.update({
       where: { id },
@@ -55,6 +57,8 @@ export const brinquedosController = {
         cicloMinutos,
         valorCiclo,
         cicloToleranciaMinutos,
+        valorCiclo2: valorCiclo2 !== undefined ? valorCiclo2 : null,
+        cicloTier2Minutos: cicloTier2Minutos !== undefined ? cicloTier2Minutos : null,
       },
     })
 

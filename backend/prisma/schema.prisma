@@ -46,6 +46,8 @@ model Brinquedo {
   cicloMinutos           Int?    // null = não usa ciclos
   valorCiclo             Float
   cicloToleranciaMinutos Int?    // min de tolerância no início de cada ciclo
+  valorCiclo2            Float?  // valor por ciclo na 2ª faixa (após cicloTier2Minutos total)
+  cicloTier2Minutos      Int?    // minutos totais a partir dos quais entra na 2ª faixa de preço
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
