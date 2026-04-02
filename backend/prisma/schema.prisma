@@ -84,6 +84,7 @@ model Caixa {
   usuarios            Usuario[]
   estacionamentos     Estacionamento[]
   brinquedos          CaixaBrinquedo[]
+  aberturas           CaixaAbertura[]
 }
 
 model CaixaBrinquedo {
@@ -97,6 +98,7 @@ model CaixaBrinquedo {
 model MovimentoCaixa {
   id        String   @id @default(uuid())
   caixaId   String
+  caixaAberturaId String?
   dataHora  DateTime
   tipo      String   // 'sangria' | 'suprimento'
   valor     Float
@@ -104,6 +106,7 @@ model MovimentoCaixa {
   createdAt DateTime @default(now())
 
   caixa     Caixa    @relation(fields: [caixaId], references: [id], onDelete: Cascade)
+  caixaAbertura CaixaAbertura? @relation(fields: [caixaAberturaId], references: [id], onDelete: SetNull)
 }
 
 model Cliente {
@@ -140,12 +143,14 @@ model Lancamento {
   valorRecebido       Float?   // valor recebido em dinheiro (para cálculo do troco)
   formaPagamentoId    String?
   pagamentosJson      String?  // JSON com múltiplas formas (formaPagamentoId/descricao/valor)
+  caixaAberturaId     String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   brinquedo           Brinquedo?        @relation(fields: [brinquedoId], references: [id])
   cliente             Cliente?          @relation(fields: [clienteId], references: [id])
   formaPagamento      FormaPagamento?   @relation(fields: [formaPagamentoId], references: [id])
+  caixaAbertura       CaixaAbertura?    @relation(fields: [caixaAberturaId], references: [id], onDelete: SetNull)
 }
 
 model Usuario {
@@ -181,6 +186,8 @@ model Usuario {
   cortesia            Boolean  @default(false)  // pode gerar códigos de cortesia
 
   caixa               Caixa?   @relation(fields: [caixaId], references: [id])
+  caixasAbertas       CaixaAbertura[] @relation("UsuarioAberturas")
+  caixasFechadas      CaixaAbertura[] @relation("UsuarioFechamentos")
 }
 
 model Estacionamento {
@@ -205,10 +212,37 @@ model LancamentoEstacionamento {
   valor             Float
   formaPagamentoId  String?
   status            String   // 'aberto' | 'pago' | 'cancelado'
+  caixaAberturaId   String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   estacionamento    Estacionamento  @relation(fields: [estacionamentoId], references: [id], onDelete: Cascade)
   formaPagamento    FormaPagamento? @relation(fields: [formaPagamentoId], references: [id])
+  caixaAbertura     CaixaAbertura?  @relation(fields: [caixaAberturaId], references: [id], onDelete: SetNull)
+}
+
+model CaixaAbertura {
+  id                  String   @id @default(uuid())
+  caixaId             String
+  usuarioAberturaId   String
+  usuarioFechamentoId String?
+  dataAbertura        DateTime
+  dataFechamento      DateTime?
+  valorInicial        Float
+  status              String   // 'aberto' | 'fechado'
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  caixa               Caixa    @relation(fields: [caixaId], references: [id], onDelete: Cascade)
+  usuarioAbertura     Usuario  @relation("UsuarioAberturas", fields: [usuarioAberturaId], references: [id])
+  usuarioFechamento   Usuario? @relation("UsuarioFechamentos", fields: [usuarioFechamentoId], references: [id])
+  movimentos          MovimentoCaixa[]
+  lancamentos         Lancamento[]
+  lancamentosEstacionamento LancamentoEstacionamento[]
+
+  @@index([caixaId, status])
+  @@index([dataAbertura])
+  @@index([usuarioAberturaId])
+  @@index([usuarioFechamentoId])
 }
 

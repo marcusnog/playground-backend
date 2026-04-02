@@ -1,171 +1,217 @@
 import { Request, Response } from 'express'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/errorHandler'
+import { AuthRequest } from '../middleware/auth'
+import {
+  getCaixaSnapshotInclude,
+  getSessionReference,
+  resolveCaixaAbertura,
+  serializeCaixaSnapshot,
+} from '../lib/caixaAbertura'
+
+function getAuthenticatedUserId(req: AuthRequest): string {
+  if (!req.user?.id) {
+    throw new AppError(401, 'Usuário não autenticado')
+  }
+  return req.user.id
+}
 
 export const caixasController = {
   async list(_req: Request, res: Response) {
     const caixas = await prisma.caixa.findMany({
       orderBy: { data: 'desc' },
-      include: {
-        movimentos: {
-          orderBy: { dataHora: 'desc' },
-        },
-        brinquedos: {
-          include: { brinquedo: true },
-        },
-      },
+      include: getCaixaSnapshotInclude(),
     })
-    res.json(caixas)
+    res.json(caixas.map((caixa) => serializeCaixaSnapshot(caixa)))
   },
 
   async getAberto(_req: Request, res: Response) {
-    const caixa = await prisma.caixa.findFirst({
+    const abertura = await prisma.caixaAbertura.findFirst({
       where: { status: 'aberto' },
+      orderBy: { dataAbertura: 'desc' },
       include: {
-        movimentos: {
-          orderBy: { dataHora: 'desc' },
-        },
-        brinquedos: {
-          include: { brinquedo: true },
+        caixa: {
+          include: getCaixaSnapshotInclude(),
         },
       },
     })
-    res.json(caixa)
+
+    res.json(abertura ? serializeCaixaSnapshot(abertura.caixa) : null)
   },
 
   async getById(req: Request, res: Response) {
     const { id } = req.params
     const caixa = await prisma.caixa.findUnique({
       where: { id },
-      include: {
-        movimentos: {
-          orderBy: { dataHora: 'desc' },
-        },
-        brinquedos: {
-          include: { brinquedo: true },
-        },
-      },
+      include: getCaixaSnapshotInclude(),
     })
     if (!caixa) {
       throw new AppError(404, 'Caixa não encontrado')
     }
-    res.json(caixa)
+    res.json(serializeCaixaSnapshot(caixa))
   },
 
-  async abrir(req: Request, res: Response) {
-    const { id, nome, valorInicial } = req.body
-    const dataHoraServidor = new Date().toISOString()
+  async abrir(req: AuthRequest, res: Response) {
+    const userId = getAuthenticatedUserId(req)
+    const { nome, valorInicial } = req.body as { nome?: string; valorInicial?: number }
+    const { caixaId } = getSessionReference(req.body as Record<string, unknown>)
+    const dataHoraServidor = new Date()
 
-    // Validar valor inicial (não pode ser negativo)
     if (valorInicial !== undefined && (typeof valorInicial !== 'number' || valorInicial < 0)) {
       throw new AppError(400, 'O valor inicial não pode ser negativo.')
     }
 
-    // Se forneceu ID, está tentando abrir um caixa existente
-    if (id) {
-      const caixa = await prisma.caixa.findUnique({
-        where: { id },
-      })
+    const opened = await prisma.$transaction(async (tx) => {
+      let caixa = null
 
-      if (!caixa) {
-        throw new AppError(404, 'Caixa não encontrado')
+      if (caixaId) {
+        caixa = await tx.caixa.findUnique({
+          where: { id: caixaId },
+        })
+
+        if (!caixa) {
+          throw new AppError(404, 'Caixa não encontrado')
+        }
+
+        if (caixa.bloqueado) {
+          throw new AppError(400, 'Este caixa está bloqueado e não pode ser aberto.')
+        }
+
+        const aberturaExistente = await tx.caixaAbertura.findFirst({
+          where: { caixaId: caixa.id, status: 'aberto' },
+        })
+
+        if (aberturaExistente) {
+          throw new AppError(400, 'Já existe uma abertura ativa para este caixa')
+        }
+      } else {
+        if (!nome || valorInicial === undefined) {
+          throw new AppError(400, 'Nome e valor inicial são obrigatórios')
+        }
+
+        caixa = await tx.caixa.create({
+          data: {
+            nome,
+            data: dataHoraServidor.toISOString(),
+            valorInicial,
+            status: 'fechado',
+          },
+        })
       }
 
-      if (caixa.status === 'aberto') {
-        throw new AppError(400, 'Caixa já está aberto')
-      }
-
-      if ((caixa as { bloqueado?: boolean }).bloqueado) {
-        throw new AppError(400, 'Este caixa está bloqueado e não pode ser aberto.')
-      }
-
-      // Permitir vários caixas abertos ao mesmo tempo (um por operador/terminal)
-      // Atualizar o caixa existente para aberto - sempre usar data/hora do servidor
-      const caixaAtualizado = await prisma.caixa.update({
-        where: { id },
+      const abertura = await tx.caixaAbertura.create({
         data: {
-          status: 'aberto',
+          caixaId: caixa.id,
+          usuarioAberturaId: userId,
+          dataAbertura: dataHoraServidor,
           valorInicial: valorInicial !== undefined ? valorInicial : caixa.valorInicial,
-          data: dataHoraServidor,
+          status: 'aberto',
         },
       })
 
-      return res.json(caixaAtualizado)
-    }
+      await tx.caixa.update({
+        where: { id: caixa.id },
+        data: {
+          status: 'aberto',
+          data: dataHoraServidor.toISOString(),
+          valorInicial: abertura.valorInicial,
+        },
+      })
 
-    // Se não forneceu ID, está criando um novo caixa
-    if (!nome || valorInicial === undefined) {
-      throw new AppError(400, 'Nome e valor inicial são obrigatórios')
-    }
+      const caixaAtualizado = await tx.caixa.findUnique({
+        where: { id: caixa.id },
+        include: getCaixaSnapshotInclude(),
+      })
 
-    // Permitir vários caixas abertos (criação de novo caixa) - sempre usar data/hora do servidor
-    const caixa = await prisma.caixa.create({
-      data: {
-        nome,
-        data: dataHoraServidor,
-        valorInicial,
-        status: 'aberto',
-      },
+      if (!caixaAtualizado) {
+        throw new AppError(404, 'Caixa não encontrado após abertura')
+      }
+
+      return { caixaAtualizado, abertura, isNewCaixa: !caixaId }
     })
 
-    return res.status(201).json(caixa)
+    const payload = {
+      ...serializeCaixaSnapshot(opened.caixaAtualizado),
+      aberturaId: opened.abertura.id,
+      sessaoAtualId: opened.abertura.id,
+      dataAbertura: opened.abertura.dataAbertura,
+    }
+
+    return res.status(opened.isNewCaixa ? 201 : 200).json(payload)
   },
 
-  async fechar(req: Request, res: Response) {
-    const { id } = req.body
+  async fechar(req: AuthRequest, res: Response) {
+    const userId = getAuthenticatedUserId(req)
+    const refs = getSessionReference(req.body as Record<string, unknown>)
 
-    if (!id) {
-      throw new AppError(400, 'ID do caixa é obrigatório')
-    }
+    const resultado = await prisma.$transaction(async (tx) => {
+      const abertura = await resolveCaixaAbertura(tx, {
+        aberturaId: refs.aberturaId,
+        caixaId: refs.caixaId,
+        userCaixaId: req.user?.caixaId,
+        requireOpen: true,
+        fallbackToSingleOpen: !refs.aberturaId && !refs.caixaId,
+      })
 
-    const caixa = await prisma.caixa.findUnique({
-      where: { id },
-      include: {
-        movimentos: true,
-      },
+      const dataFechamento = new Date()
+
+      await tx.caixaAbertura.update({
+        where: { id: abertura.id },
+        data: {
+          status: 'fechado',
+          dataFechamento,
+          usuarioFechamentoId: userId,
+        },
+      })
+
+      await tx.caixa.update({
+        where: { id: abertura.caixaId },
+        data: {
+          status: 'fechado',
+        },
+      })
+
+      const caixaAtualizado = await tx.caixa.findUnique({
+        where: { id: abertura.caixaId },
+        include: getCaixaSnapshotInclude(),
+      })
+
+      if (!caixaAtualizado) {
+        throw new AppError(404, 'Caixa não encontrado após fechamento')
+      }
+
+      return { aberturaId: abertura.id, caixaAtualizado }
     })
 
-    if (!caixa) {
-      throw new AppError(404, 'Caixa não encontrado')
-    }
-
-    if (caixa.status === 'fechado') {
-      throw new AppError(400, 'Caixa já está fechado')
-    }
-
-    const caixaAtualizado = await prisma.caixa.update({
-      where: { id },
-      data: {
-        status: 'fechado',
-      },
+    res.json({
+      ...serializeCaixaSnapshot(resultado.caixaAtualizado),
+      aberturaId: resultado.aberturaId,
+      sessaoAtualId: null,
+      dataFechamento: new Date(),
     })
-
-    res.json(caixaAtualizado)
   },
 
-  async sangria(req: Request, res: Response) {
+  async sangria(req: AuthRequest, res: Response) {
     const { id } = req.params
-    const { valor, motivo } = req.body
+    const { valor, motivo } = req.body as { valor?: number; motivo?: string }
 
     if (!valor || valor <= 0) {
       throw new AppError(400, 'Valor da sangria deve ser maior que zero')
     }
 
-    const caixa = await prisma.caixa.findUnique({
-      where: { id },
+    const refs = getSessionReference(req.body as Record<string, unknown>, id)
+    const abertura = await resolveCaixaAbertura(prisma, {
+      aberturaId: refs.aberturaId,
+      caixaId: refs.caixaId,
+      userCaixaId: req.user?.caixaId,
+      requireOpen: true,
+      fallbackToSingleOpen: !refs.aberturaId && !refs.caixaId,
     })
-
-    if (!caixa) {
-      throw new AppError(404, 'Caixa não encontrado')
-    }
-
-    if (caixa.status !== 'aberto') {
-      throw new AppError(400, 'Caixa deve estar aberto para realizar sangria')
-    }
 
     const movimento = await prisma.movimentoCaixa.create({
       data: {
-        caixaId: id,
+        caixaId: abertura.caixaId,
+        caixaAberturaId: abertura.id,
         dataHora: new Date(),
         tipo: 'sangria',
         valor,
@@ -176,29 +222,27 @@ export const caixasController = {
     res.status(201).json(movimento)
   },
 
-  async suprimento(req: Request, res: Response) {
+  async suprimento(req: AuthRequest, res: Response) {
     const { id } = req.params
-    const { valor, motivo } = req.body
+    const { valor, motivo } = req.body as { valor?: number; motivo?: string }
 
     if (!valor || valor <= 0) {
       throw new AppError(400, 'Valor do suprimento deve ser maior que zero')
     }
 
-    const caixa = await prisma.caixa.findUnique({
-      where: { id },
+    const refs = getSessionReference(req.body as Record<string, unknown>, id)
+    const abertura = await resolveCaixaAbertura(prisma, {
+      aberturaId: refs.aberturaId,
+      caixaId: refs.caixaId,
+      userCaixaId: req.user?.caixaId,
+      requireOpen: true,
+      fallbackToSingleOpen: !refs.aberturaId && !refs.caixaId,
     })
-
-    if (!caixa) {
-      throw new AppError(404, 'Caixa não encontrado')
-    }
-
-    if (caixa.status !== 'aberto') {
-      throw new AppError(400, 'Caixa deve estar aberto para realizar suprimento')
-    }
 
     const movimento = await prisma.movimentoCaixa.create({
       data: {
-        caixaId: id,
+        caixaId: abertura.caixaId,
+        caixaAberturaId: abertura.id,
         dataHora: new Date(),
         tipo: 'suprimento',
         valor,
@@ -209,17 +253,32 @@ export const caixasController = {
     res.status(201).json(movimento)
   },
 
-  async getMovimentos(req: Request, res: Response) {
+  async getMovimentos(req: AuthRequest, res: Response) {
     const { id } = req.params
+    const refs = getSessionReference(req.query as Record<string, unknown>, id)
+
+    const abertura = await resolveCaixaAbertura(prisma, {
+      aberturaId: refs.aberturaId,
+      caixaId: refs.caixaId,
+      userCaixaId: req.user?.caixaId,
+      requireOpen: false,
+      fallbackToSingleOpen: !refs.aberturaId && !refs.caixaId,
+    })
+
     const movimentos = await prisma.movimentoCaixa.findMany({
-      where: { caixaId: id },
+      where: { caixaAberturaId: abertura.id },
       orderBy: { dataHora: 'desc' },
     })
     res.json(movimentos)
   },
 
   async create(req: Request, res: Response) {
-    const { nome, data, bloqueado, brinquedoIds } = req.body
+    const { nome, data, bloqueado, brinquedoIds } = req.body as {
+      nome?: string
+      data?: string
+      bloqueado?: boolean
+      brinquedoIds?: string[]
+    }
 
     if (!nome) {
       throw new AppError(400, 'Nome é obrigatório')
@@ -235,37 +294,46 @@ export const caixasController = {
       },
     })
 
-    const ids = Array.isArray(brinquedoIds) ? brinquedoIds.filter((id: unknown) => typeof id === 'string') : []
+    const ids = Array.isArray(brinquedoIds) ? brinquedoIds.filter((item): item is string => typeof item === 'string') : []
     if (ids.length > 0) {
       await prisma.caixaBrinquedo.createMany({
-        data: ids.map((brinquedoId: string) => ({ caixaId: caixa.id, brinquedoId })),
+        data: ids.map((brinquedoId) => ({ caixaId: caixa.id, brinquedoId })),
       })
     }
 
     const created = await prisma.caixa.findUnique({
       where: { id: caixa.id },
-      include: {
-        movimentos: true,
-        brinquedos: { include: { brinquedo: true } },
-      },
+      include: getCaixaSnapshotInclude(),
     })
-    res.status(201).json(created || caixa)
+
+    res.status(201).json(created ? serializeCaixaSnapshot(created) : caixa)
   },
 
   async update(req: Request, res: Response) {
     const { id } = req.params
-    const { nome, data, bloqueado, brinquedoIds } = req.body
+    const { nome, data, bloqueado, brinquedoIds } = req.body as {
+      nome?: string
+      data?: string
+      bloqueado?: boolean
+      brinquedoIds?: string[]
+    }
 
     const caixa = await prisma.caixa.findUnique({
       where: { id },
+      include: {
+        aberturas: {
+          where: { status: 'aberto' },
+          take: 1,
+        },
+      },
     })
 
     if (!caixa) {
       throw new AppError(404, 'Caixa não encontrado')
     }
 
-    if (caixa.status === 'aberto') {
-      throw new AppError(400, 'Não é possível editar um caixa aberto')
+    if (caixa.aberturas.length > 0) {
+      throw new AppError(400, 'Não é possível editar um caixa com abertura ativa')
     }
 
     const dataUpdate: { nome?: string; data?: string; bloqueado?: boolean } = {}
@@ -280,22 +348,24 @@ export const caixasController = {
 
     if (brinquedoIds !== undefined) {
       await prisma.caixaBrinquedo.deleteMany({ where: { caixaId: id } })
-      const ids = Array.isArray(brinquedoIds) ? brinquedoIds.filter((bid: unknown) => typeof bid === 'string') : []
+      const ids = Array.isArray(brinquedoIds) ? brinquedoIds.filter((item): item is string => typeof item === 'string') : []
       if (ids.length > 0) {
         await prisma.caixaBrinquedo.createMany({
-          data: ids.map((brinquedoId: string) => ({ caixaId: id, brinquedoId })),
+          data: ids.map((brinquedoId) => ({ caixaId: id, brinquedoId })),
         })
       }
     }
 
     const caixaAtualizado = await prisma.caixa.findUnique({
       where: { id },
-      include: {
-        movimentos: { orderBy: { dataHora: 'desc' } },
-        brinquedos: { include: { brinquedo: true } },
-      },
+      include: getCaixaSnapshotInclude(),
     })
-    res.json(caixaAtualizado)
+
+    if (!caixaAtualizado) {
+      throw new AppError(404, 'Caixa não encontrado após atualização')
+    }
+
+    res.json(serializeCaixaSnapshot(caixaAtualizado))
   },
 
   async delete(req: Request, res: Response) {
@@ -303,14 +373,20 @@ export const caixasController = {
 
     const caixa = await prisma.caixa.findUnique({
       where: { id },
+      include: {
+        aberturas: {
+          where: { status: 'aberto' },
+          take: 1,
+        },
+      },
     })
 
     if (!caixa) {
       throw new AppError(404, 'Caixa não encontrado')
     }
 
-    if (caixa.status === 'aberto') {
-      throw new AppError(400, 'Não é possível excluir um caixa aberto')
+    if (caixa.aberturas.length > 0) {
+      throw new AppError(400, 'Não é possível excluir um caixa com abertura ativa')
     }
 
     await prisma.caixa.delete({
@@ -320,4 +396,3 @@ export const caixasController = {
     res.status(204).send()
   },
 }
-
