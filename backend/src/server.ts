@@ -12,6 +12,7 @@ import { usuariosRoutes } from './routes/usuarios.routes'
 import { lancamentosRoutes } from './routes/lancamentos.routes'
 import { estacionamentosRoutes } from './routes/estacionamentos.routes'
 import { cortesiasRoutes } from './routes/cortesias.routes'
+import { aiRoutes } from './routes/ai.routes'
 import { errorHandler } from './middleware/errorHandler'
 import { logger } from './lib/logger'
 import { validateEnv } from './lib/env'
@@ -79,6 +80,7 @@ app.use('/api/usuarios', usuariosRoutes)
 app.use('/api/lancamentos', lancamentosRoutes)
 app.use('/api/estacionamentos', estacionamentosRoutes)
 app.use('/api/cortesias', cortesiasRoutes)
+app.use('/api/ai', aiRoutes)
 
 // 404 handler
 app.use((req: express.Request, res: express.Response) => {
