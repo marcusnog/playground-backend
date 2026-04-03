@@ -29,6 +29,45 @@ export function getCaixaSnapshotInclude() {
   return caixaInclude
 }
 
+function resolveLegacyCaixaData(data: string, fallback: Date) {
+  const normalized = data.length === 10 ? `${data}T00:00:00` : data
+  const parsed = new Date(normalized)
+  return Number.isNaN(parsed.getTime()) ? fallback : parsed
+}
+
+async function ensureLegacyCaixaAbertura(
+  db: DbClient,
+  input: {
+    caixaId: string
+    fallbackUserId?: string
+  }
+) {
+  if (!input.fallbackUserId) return null
+
+  const aberturaExistente = await db.caixaAbertura.findFirst({
+    where: { caixaId: input.caixaId, status: 'aberto' },
+    orderBy: { dataAbertura: 'desc' },
+  })
+
+  if (aberturaExistente) return aberturaExistente
+
+  const caixa = await db.caixa.findUnique({
+    where: { id: input.caixaId },
+  })
+
+  if (!caixa || caixa.status !== 'aberto') return null
+
+  return db.caixaAbertura.create({
+    data: {
+      caixaId: caixa.id,
+      usuarioAberturaId: input.fallbackUserId,
+      dataAbertura: resolveLegacyCaixaData(caixa.data, caixa.createdAt),
+      valorInicial: caixa.valorInicial,
+      status: 'aberto',
+    },
+  })
+}
+
 export function getSessionReference(data?: Record<string, unknown> | null, fallbackCaixaId?: string | null) {
   const aberturaIdRaw = data?.aberturaId ?? data?.caixaAberturaId
   const caixaIdRaw = data?.caixaId ?? data?.id ?? fallbackCaixaId ?? null
@@ -45,6 +84,7 @@ export async function resolveCaixaAbertura(
     aberturaId?: string
     caixaId?: string
     userCaixaId?: string
+    fallbackUserId?: string
     requireOpen?: boolean
     fallbackToSingleOpen?: boolean
   }
@@ -57,11 +97,11 @@ export async function resolveCaixaAbertura(
     })
 
     if (!abertura) {
-      throw new AppError(404, 'Abertura de caixa não encontrada')
+      throw new AppError(404, 'Abertura de caixa nÃ£o encontrada')
     }
 
     if (requireOpen && abertura.status !== 'aberto') {
-      throw new AppError(400, 'A abertura de caixa informada já está fechada')
+      throw new AppError(400, 'A abertura de caixa informada jÃ¡ estÃ¡ fechada')
     }
 
     return abertura
@@ -69,13 +109,20 @@ export async function resolveCaixaAbertura(
 
   const caixaId = input.caixaId ?? input.userCaixaId
   if (caixaId) {
-    const abertura = await db.caixaAbertura.findFirst({
+    let abertura = await db.caixaAbertura.findFirst({
       where: {
         caixaId,
         ...(requireOpen ? { status: 'aberto' } : {}),
       },
       orderBy: { dataAbertura: 'desc' },
     })
+
+    if (!abertura && requireOpen) {
+      abertura = await ensureLegacyCaixaAbertura(db, {
+        caixaId,
+        fallbackUserId: input.fallbackUserId,
+      })
+    }
 
     if (!abertura) {
       throw new AppError(400, requireOpen ? 'Nenhuma abertura ativa encontrada para este caixa' : 'Nenhuma abertura encontrada para este caixa')
@@ -97,17 +144,52 @@ export async function resolveCaixaAbertura(
 
     if (abertas.length === 1) return abertas[0]
     if (abertas.length > 1) {
-      throw new AppError(400, 'Há mais de um caixa aberto. Informe o caixa ou a abertura explicitamente.')
+      throw new AppError(400, 'HÃ¡ mais de um caixa aberto. Informe o caixa ou a abertura explicitamente.')
+    }
+
+    if (requireOpen) {
+      const caixasAbertos = await db.caixa.findMany({
+        where: { status: 'aberto' },
+        orderBy: { updatedAt: 'desc' },
+        take: 2,
+      })
+
+      if (caixasAbertos.length === 1) {
+        const aberturaLegacy = await ensureLegacyCaixaAbertura(db, {
+          caixaId: caixasAbertos[0].id,
+          fallbackUserId: input.fallbackUserId,
+        })
+
+        if (aberturaLegacy) return aberturaLegacy
+      }
+
+      if (caixasAbertos.length > 1) {
+        throw new AppError(400, 'HÃ¡ mais de um caixa aberto. Informe o caixa ou a abertura explicitamente.')
+      }
     }
   }
 
-  throw new AppError(400, 'Não foi possível resolver a abertura do caixa para esta operação')
+  throw new AppError(400, 'NÃ£o foi possÃ­vel resolver a abertura do caixa para esta operaÃ§Ã£o')
 }
 
 export function serializeCaixaSnapshot(caixa: CaixaSnapshot) {
   const ultimaAbertura = caixa.aberturas[0] ?? null
   const sessaoAtual = ultimaAbertura?.status === 'aberto' ? ultimaAbertura : null
-  const movimentos = ultimaAbertura?.movimentos ?? caixa.movimentos
+  const movimentos = ultimaAbertura
+    ? (() => {
+        const inicioSessao = ultimaAbertura.dataAbertura.getTime()
+        const fimSessao = ultimaAbertura.dataFechamento?.getTime() ?? Number.POSITIVE_INFINITY
+        const movimentosLegacy = caixa.movimentos.filter((movimento) => {
+          if (movimento.caixaAberturaId) return false
+          const dataHora = new Date(movimento.dataHora).getTime()
+          return dataHora >= inicioSessao && dataHora <= fimSessao
+        })
+        const ids = new Set(ultimaAbertura.movimentos.map((movimento) => movimento.id))
+
+        return [...ultimaAbertura.movimentos, ...movimentosLegacy.filter((movimento) => !ids.has(movimento.id))]
+          .sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime())
+      })()
+    : caixa.movimentos
   const data = ultimaAbertura ? ultimaAbertura.dataAbertura.toISOString() : caixa.data
   const valorInicial = ultimaAbertura ? ultimaAbertura.valorInicial : caixa.valorInicial
   const updatedAt = ultimaAbertura?.dataFechamento ?? ultimaAbertura?.updatedAt ?? caixa.updatedAt

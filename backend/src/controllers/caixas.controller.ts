@@ -11,9 +11,15 @@ import {
 
 function getAuthenticatedUserId(req: AuthRequest): string {
   if (!req.user?.id) {
-    throw new AppError(401, 'Usuário não autenticado')
+    throw new AppError(401, 'UsuÃ¡rio nÃ£o autenticado')
   }
   return req.user.id
+}
+
+function resolveLegacyDataAbertura(data: string, fallback: Date) {
+  const normalized = data.length === 10 ? `${data}T00:00:00` : data
+  const parsed = new Date(normalized)
+  return Number.isNaN(parsed.getTime()) ? fallback : parsed
 }
 
 export const caixasController = {
@@ -36,7 +42,18 @@ export const caixasController = {
       },
     })
 
-    res.json(abertura ? serializeCaixaSnapshot(abertura.caixa) : null)
+    if (abertura) {
+      res.json(serializeCaixaSnapshot(abertura.caixa))
+      return
+    }
+
+    const caixaLegacy = await prisma.caixa.findFirst({
+      where: { status: 'aberto' },
+      orderBy: { updatedAt: 'desc' },
+      include: getCaixaSnapshotInclude(),
+    })
+
+    res.json(caixaLegacy ? serializeCaixaSnapshot(caixaLegacy) : null)
   },
 
   async getById(req: Request, res: Response) {
@@ -46,7 +63,7 @@ export const caixasController = {
       include: getCaixaSnapshotInclude(),
     })
     if (!caixa) {
-      throw new AppError(404, 'Caixa não encontrado')
+      throw new AppError(404, 'Caixa nÃ£o encontrado')
     }
     res.json(serializeCaixaSnapshot(caixa))
   },
@@ -58,7 +75,7 @@ export const caixasController = {
     const dataHoraServidor = new Date()
 
     if (valorInicial !== undefined && (typeof valorInicial !== 'number' || valorInicial < 0)) {
-      throw new AppError(400, 'O valor inicial não pode ser negativo.')
+      throw new AppError(400, 'O valor inicial nÃ£o pode ser negativo.')
     }
 
     const opened = await prisma.$transaction(async (tx) => {
@@ -70,11 +87,15 @@ export const caixasController = {
         })
 
         if (!caixa) {
-          throw new AppError(404, 'Caixa não encontrado')
+          throw new AppError(404, 'Caixa nÃ£o encontrado')
         }
 
         if (caixa.bloqueado) {
-          throw new AppError(400, 'Este caixa está bloqueado e não pode ser aberto.')
+          throw new AppError(400, 'Este caixa estÃ¡ bloqueado e nÃ£o pode ser aberto.')
+        }
+
+        if (caixa.status === 'aberto') {
+          throw new AppError(400, 'JÃ¡ existe uma abertura ativa para este caixa')
         }
 
         const aberturaExistente = await tx.caixaAbertura.findFirst({
@@ -82,11 +103,11 @@ export const caixasController = {
         })
 
         if (aberturaExistente) {
-          throw new AppError(400, 'Já existe uma abertura ativa para este caixa')
+          throw new AppError(400, 'JÃ¡ existe uma abertura ativa para este caixa')
         }
       } else {
         if (!nome || valorInicial === undefined) {
-          throw new AppError(400, 'Nome e valor inicial são obrigatórios')
+          throw new AppError(400, 'Nome e valor inicial sÃ£o obrigatÃ³rios')
         }
 
         caixa = await tx.caixa.create({
@@ -124,7 +145,7 @@ export const caixasController = {
       })
 
       if (!caixaAtualizado) {
-        throw new AppError(404, 'Caixa não encontrado após abertura')
+        throw new AppError(404, 'Caixa nÃ£o encontrado apÃ³s abertura')
       }
 
       return { caixaAtualizado, abertura, isNewCaixa: !caixaId }
@@ -145,49 +166,92 @@ export const caixasController = {
     const refs = getSessionReference(req.body as Record<string, unknown>)
 
     const resultado = await prisma.$transaction(async (tx) => {
-      const abertura = await resolveCaixaAbertura(tx, {
-        aberturaId: refs.aberturaId,
-        caixaId: refs.caixaId,
-        userCaixaId: req.user?.caixaId,
-        requireOpen: true,
-        fallbackToSingleOpen: !refs.aberturaId && !refs.caixaId,
-      })
-
       const dataFechamento = new Date()
+      let aberturaId: string | null = null
+      let caixaIdParaFechar: string
 
-      await tx.caixaAbertura.update({
-        where: { id: abertura.id },
-        data: {
-          status: 'fechado',
-          dataFechamento,
-          usuarioFechamentoId: userId,
-        },
-      })
+      try {
+        const abertura = await resolveCaixaAbertura(tx, {
+          aberturaId: refs.aberturaId,
+          caixaId: refs.caixaId,
+          userCaixaId: req.user?.caixaId,
+          fallbackUserId: req.user?.id,
+          requireOpen: true,
+          fallbackToSingleOpen: !refs.aberturaId && !refs.caixaId,
+        })
+
+        aberturaId = abertura.id
+        caixaIdParaFechar = abertura.caixaId
+
+        await tx.caixaAbertura.update({
+          where: { id: abertura.id },
+          data: {
+            status: 'fechado',
+            dataFechamento,
+            usuarioFechamentoId: userId,
+          },
+        })
+      } catch (error) {
+        const isNoActiveSessionError =
+          error instanceof AppError &&
+          error.statusCode === 400 &&
+          error.message === 'Nenhuma abertura ativa encontrada para este caixa'
+
+        if (!isNoActiveSessionError || !refs.caixaId) {
+          throw error
+        }
+
+        const caixaLegado = await tx.caixa.findUnique({
+          where: { id: refs.caixaId },
+        })
+
+        if (!caixaLegado) {
+          throw new AppError(404, 'Caixa nÃ£o encontrado')
+        }
+
+        caixaIdParaFechar = caixaLegado.id
+
+        if (caixaLegado.status === 'aberto') {
+          const aberturaLegada = await tx.caixaAbertura.create({
+            data: {
+              caixaId: caixaLegado.id,
+              usuarioAberturaId: userId,
+              usuarioFechamentoId: userId,
+              dataAbertura: resolveLegacyDataAbertura(caixaLegado.data, caixaLegado.createdAt),
+              dataFechamento,
+              valorInicial: caixaLegado.valorInicial,
+              status: 'fechado',
+            },
+          })
+
+          aberturaId = aberturaLegada.id
+        }
+      }
 
       await tx.caixa.update({
-        where: { id: abertura.caixaId },
+        where: { id: caixaIdParaFechar },
         data: {
           status: 'fechado',
         },
       })
 
       const caixaAtualizado = await tx.caixa.findUnique({
-        where: { id: abertura.caixaId },
+        where: { id: caixaIdParaFechar },
         include: getCaixaSnapshotInclude(),
       })
 
       if (!caixaAtualizado) {
-        throw new AppError(404, 'Caixa não encontrado após fechamento')
+        throw new AppError(404, 'Caixa nÃ£o encontrado apÃ³s fechamento')
       }
 
-      return { aberturaId: abertura.id, caixaAtualizado }
+      return { aberturaId, caixaAtualizado, dataFechamento }
     })
 
     res.json({
       ...serializeCaixaSnapshot(resultado.caixaAtualizado),
       aberturaId: resultado.aberturaId,
       sessaoAtualId: null,
-      dataFechamento: new Date(),
+      dataFechamento: resultado.dataFechamento,
     })
   },
 
@@ -204,6 +268,7 @@ export const caixasController = {
       aberturaId: refs.aberturaId,
       caixaId: refs.caixaId,
       userCaixaId: req.user?.caixaId,
+      fallbackUserId: req.user?.id,
       requireOpen: true,
       fallbackToSingleOpen: !refs.aberturaId && !refs.caixaId,
     })
@@ -235,6 +300,7 @@ export const caixasController = {
       aberturaId: refs.aberturaId,
       caixaId: refs.caixaId,
       userCaixaId: req.user?.caixaId,
+      fallbackUserId: req.user?.id,
       requireOpen: true,
       fallbackToSingleOpen: !refs.aberturaId && !refs.caixaId,
     })
@@ -261,6 +327,7 @@ export const caixasController = {
       aberturaId: refs.aberturaId,
       caixaId: refs.caixaId,
       userCaixaId: req.user?.caixaId,
+      fallbackUserId: req.user?.id,
       requireOpen: false,
       fallbackToSingleOpen: !refs.aberturaId && !refs.caixaId,
     })
@@ -281,7 +348,7 @@ export const caixasController = {
     }
 
     if (!nome) {
-      throw new AppError(400, 'Nome é obrigatório')
+      throw new AppError(400, 'Nome Ã© obrigatÃ³rio')
     }
 
     const caixa = await prisma.caixa.create({
@@ -329,11 +396,11 @@ export const caixasController = {
     })
 
     if (!caixa) {
-      throw new AppError(404, 'Caixa não encontrado')
+      throw new AppError(404, 'Caixa nÃ£o encontrado')
     }
 
-    if (caixa.aberturas.length > 0) {
-      throw new AppError(400, 'Não é possível editar um caixa com abertura ativa')
+    if (caixa.status === 'aberto' || caixa.aberturas.length > 0) {
+      throw new AppError(400, 'NÃ£o Ã© possÃ­vel editar um caixa com abertura ativa')
     }
 
     const dataUpdate: { nome?: string; data?: string; bloqueado?: boolean } = {}
@@ -362,7 +429,7 @@ export const caixasController = {
     })
 
     if (!caixaAtualizado) {
-      throw new AppError(404, 'Caixa não encontrado após atualização')
+      throw new AppError(404, 'Caixa nÃ£o encontrado apÃ³s atualizaÃ§Ã£o')
     }
 
     res.json(serializeCaixaSnapshot(caixaAtualizado))
@@ -382,11 +449,11 @@ export const caixasController = {
     })
 
     if (!caixa) {
-      throw new AppError(404, 'Caixa não encontrado')
+      throw new AppError(404, 'Caixa nÃ£o encontrado')
     }
 
-    if (caixa.aberturas.length > 0) {
-      throw new AppError(400, 'Não é possível excluir um caixa com abertura ativa')
+    if (caixa.status === 'aberto' || caixa.aberturas.length > 0) {
+      throw new AppError(400, 'NÃ£o Ã© possÃ­vel excluir um caixa com abertura ativa')
     }
 
     await prisma.caixa.delete({

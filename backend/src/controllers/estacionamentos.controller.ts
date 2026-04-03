@@ -37,6 +37,7 @@ async function resolveSessionForEstacionamento(
       aberturaId: refs.aberturaId,
       caixaId: resolvedCaixaId,
       userCaixaId: req.user?.caixaId,
+      fallbackUserId: req.user?.id,
       requireOpen: true,
       fallbackToSingleOpen: !refs.aberturaId && !resolvedCaixaId,
     })
@@ -383,6 +384,7 @@ export const estacionamentosController = {
     const abertura = await resolveCaixaAbertura(prisma, {
       caixaId,
       userCaixaId: req.user?.caixaId,
+      fallbackUserId: req.user?.id,
       requireOpen: true,
       fallbackToSingleOpen: !caixaId,
     })
@@ -435,6 +437,10 @@ export const estacionamentosController = {
 
       if (caixa.bloqueado) {
         throw new AppError(400, 'Este caixa esta bloqueado e nao pode ser aberto')
+      }
+
+      if (caixa.status === 'aberto') {
+        throw new AppError(400, 'Ja existe uma abertura ativa para este caixa')
       }
 
       const aberturaExistente = await tx.caixaAbertura.findFirst({
@@ -511,6 +517,7 @@ export const estacionamentosController = {
         aberturaId: refs.aberturaId,
         caixaId,
         userCaixaId: req.user?.caixaId,
+        fallbackUserId: req.user?.id,
         requireOpen: true,
         fallbackToSingleOpen: !refs.aberturaId && !caixaId,
       })

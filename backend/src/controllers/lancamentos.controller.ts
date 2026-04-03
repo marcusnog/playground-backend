@@ -17,6 +17,7 @@ async function resolveSessionForLancamento(
       aberturaId: refs.aberturaId,
       caixaId: refs.caixaId,
       userCaixaId: req.user?.caixaId,
+      fallbackUserId: req.user?.id,
       requireOpen: true,
       fallbackToSingleOpen: !refs.aberturaId && !refs.caixaId,
     })
