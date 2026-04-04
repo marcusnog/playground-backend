@@ -183,6 +183,21 @@ export const caixasController = {
         aberturaId = abertura.id
         caixaIdParaFechar = abertura.caixaId
 
+        const lancamentosAbertos = await tx.lancamento.count({
+          where: { caixaAberturaId: abertura.id, status: 'aberto' },
+        })
+
+        const lancamentosEstacionamentoAbertos = await tx.lancamentoEstacionamento.count({
+          where: { caixaAberturaId: abertura.id, status: 'aberto' },
+        })
+
+        if (lancamentosAbertos + lancamentosEstacionamentoAbertos > 0) {
+          throw new AppError(
+            400,
+            'Não é possível fechar o caixa com acompanhamentos em aberto. Encerre ou cancele todos os acompanhamentos antes.',
+          )
+        }
+
         await tx.caixaAbertura.update({
           where: { id: abertura.id },
           data: {
