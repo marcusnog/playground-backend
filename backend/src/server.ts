@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
 import 'express-async-errors'
 import dotenv from 'dotenv'
 import { authRoutes } from './routes/auth.routes'
@@ -30,6 +31,19 @@ const NODE_ENV = process.env.NODE_ENV || 'development'
 
 // Trust proxy (important for production behind reverse proxy)
 app.set('trust proxy', 1)
+
+// Security headers
+app.use(helmet({
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:'],
+    },
+  },
+}))
 
 // CORS configuration
 const corsOptions: cors.CorsOptions = {
@@ -64,8 +78,6 @@ app.get('/health', (_req: express.Request, res: express.Response) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    environment: NODE_ENV,
-    version: process.env.npm_package_version || '1.0.0',
   })
 })
 

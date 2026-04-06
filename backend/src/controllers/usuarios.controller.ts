@@ -1,8 +1,40 @@
 import { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import { Prisma } from '@prisma/client'
+import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/errorHandler'
+
+const permissionsSchema = z.object({
+  usaCaixa: z.boolean().optional(),
+  bloqueado: z.boolean().optional(),
+  acompanhamento: z.boolean().optional(),
+  lancamento: z.boolean().optional(),
+  caixaAbertura: z.boolean().optional(),
+  caixaFechamento: z.boolean().optional(),
+  caixaSangria: z.boolean().optional(),
+  caixaSuprimento: z.boolean().optional(),
+  estacionamentoCadastro: z.boolean().optional(),
+  estacionamentoCaixaAbertura: z.boolean().optional(),
+  estacionamentoCaixaFechamento: z.boolean().optional(),
+  estacionamentoLancamento: z.boolean().optional(),
+  estacionamentoAcompanhamento: z.boolean().optional(),
+  relatorios: z.boolean().optional(),
+  parametrosEmpresa: z.boolean().optional(),
+  parametrosFormasPagamento: z.boolean().optional(),
+  parametrosBrinquedos: z.boolean().optional(),
+  clientes: z.boolean().optional(),
+  descontoAutorizado: z.boolean().optional(),
+  cortesia: z.boolean().optional(),
+  caixaId: z.string().uuid().optional().nullable(),
+})
+
+const usuarioCreateSchema = z.object({
+  nomeCompleto: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(150).trim(),
+  apelido: z.string().min(2, 'Apelido deve ter pelo menos 2 caracteres').max(50).trim().regex(/^[a-zA-Z0-9_.\- ]+$/, 'Apelido contém caracteres inválidos'),
+  contato: z.string().max(100).optional(),
+  senha: z.string().min(8, 'Senha deve ter pelo menos 8 caracteres').max(200),
+}).merge(permissionsSchema)
 
 export const usuariosController = {
   async list(_req: Request, res: Response) {
@@ -81,6 +113,10 @@ export const usuariosController = {
   },
 
   async create(req: Request, res: Response) {
+    const parsed = usuarioCreateSchema.safeParse(req.body)
+    if (!parsed.success) {
+      throw new AppError(400, parsed.error.issues.map((i) => i.message).join(', '))
+    }
     const {
       nomeCompleto,
       apelido,
@@ -107,11 +143,7 @@ export const usuariosController = {
       clientes,
       descontoAutorizado,
       cortesia,
-    } = req.body
-
-    if (!nomeCompleto || !apelido || !senha) {
-      throw new AppError(400, 'Nome completo, apelido e senha são obrigatórios')
-    }
+    } = parsed.data
 
     // Verificar se apelido já existe
     const existing = await prisma.usuario.findUnique({
@@ -122,7 +154,7 @@ export const usuariosController = {
       throw new AppError(400, 'Apelido já está em uso')
     }
 
-    const hashedPassword = await bcrypt.hash(senha, 10)
+    const hashedPassword = await bcrypt.hash(senha, 12)
 
     const usuario = await prisma.usuario.create({
       data: {
@@ -188,6 +220,13 @@ export const usuariosController = {
 
   async update(req: Request, res: Response) {
     const { id } = req.params
+    const updateSchema = usuarioCreateSchema.partial().extend({
+      senha: z.string().min(8, 'Senha deve ter pelo menos 8 caracteres').max(200).optional(),
+    })
+    const parsed = updateSchema.safeParse(req.body)
+    if (!parsed.success) {
+      throw new AppError(400, parsed.error.issues.map((i) => i.message).join(', '))
+    }
     const {
       nomeCompleto,
       apelido,
@@ -214,7 +253,7 @@ export const usuariosController = {
       clientes,
       descontoAutorizado,
       cortesia,
-    } = req.body
+    } = parsed.data
 
     const updateData: Prisma.UsuarioUpdateInput = {
       nomeCompleto,
@@ -245,7 +284,7 @@ export const usuariosController = {
 
     // Se senha foi fornecida, hash ela
     if (senha) {
-      updateData.senha = await bcrypt.hash(senha, 10)
+      updateData.senha = await bcrypt.hash(senha, 12)
     }
 
     // Se apelido mudou, verificar se não está em uso

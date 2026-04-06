@@ -1,9 +1,26 @@
 import { Response } from 'express'
 import { Prisma } from '@prisma/client'
+import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/errorHandler'
 import { AuthRequest } from '../middleware/auth'
 import { getSessionReference, resolveCaixaAbertura } from '../lib/caixaAbertura'
+
+const lancamentoCreateSchema = z.object({
+  nomeCrianca: z.string().min(1, 'Nome da criança é obrigatório').max(150).trim(),
+  nomeResponsavel: z.string().min(1, 'Nome do responsável é obrigatório').max(150).trim(),
+  tipoParente: z.string().max(50).trim().optional().nullable(),
+  whatsappResponsavel: z.string().min(10, 'Whatsapp inválido').max(20),
+  numeroPulseira: z.string().max(20).optional().nullable(),
+  tempoSolicitadoMin: z.number().int().min(0).max(600).optional().nullable(),
+  tempoInicialMin: z.number().int().min(0).max(600).optional().nullable(),
+  tempoAdicionalMin: z.number().int().min(0).max(600).optional().nullable(),
+  quantidade: z.number().int().min(1).max(100).optional(),
+  brinquedoId: z.string().uuid().optional(),
+  clienteId: z.string().uuid().optional(),
+  valorCalculado: z.number().min(0, 'Valor inválido').max(99999.99),
+  dataHora: z.string().optional(),
+})
 
 async function resolveSessionForLancamento(
   req: AuthRequest,
@@ -88,6 +105,10 @@ export const lancamentosController = {
   },
 
   async create(req: AuthRequest, res: Response) {
+    const parsed = lancamentoCreateSchema.safeParse(req.body)
+    if (!parsed.success) {
+      throw new AppError(400, parsed.error.issues.map((i) => i.message).join(', '))
+    }
     const {
       dataHora,
       nomeCrianca,
@@ -102,35 +123,31 @@ export const lancamentosController = {
       brinquedoId,
       clienteId,
       valorCalculado,
-    } = req.body as Record<string, unknown>
-
-    if (!nomeCrianca || !nomeResponsavel || !whatsappResponsavel || valorCalculado === undefined) {
-      throw new AppError(400, 'Campos obrigatórios não fornecidos')
-    }
+    } = parsed.data
 
     const hasTempoInicialOuAdicional = tempoInicialMin != null || tempoAdicionalMin != null
     const tempoTotal = hasTempoInicialOuAdicional
-      ? (Number(tempoInicialMin ?? 0) + Number(tempoAdicionalMin ?? 0))
-      : (tempoSolicitadoMin as number | null | undefined)
+      ? ((tempoInicialMin ?? 0) + (tempoAdicionalMin ?? 0))
+      : tempoSolicitadoMin
 
     const caixaAberturaId = await resolveSessionForLancamento(req, req.body as Record<string, unknown>)
 
     const lancamento = await prisma.lancamento.create({
       data: {
-        dataHora: dataHora ? new Date(String(dataHora)) : new Date(),
-        nomeCrianca: String(nomeCrianca),
-        nomeResponsavel: String(nomeResponsavel),
-        tipoParente: typeof tipoParente === 'string' ? tipoParente : null,
-        whatsappResponsavel: String(whatsappResponsavel),
-        numeroPulseira: typeof numeroPulseira === 'string' ? numeroPulseira : null,
+        dataHora: dataHora ? new Date(dataHora) : new Date(),
+        nomeCrianca,
+        nomeResponsavel,
+        tipoParente: tipoParente ?? null,
+        whatsappResponsavel,
+        numeroPulseira: numeroPulseira ?? null,
         tempoSolicitadoMin: tempoTotal ?? null,
-        tempoInicialMin: tempoInicialMin != null ? Number(tempoInicialMin) : undefined,
-        tempoAdicionalMin: tempoAdicionalMin != null ? Number(tempoAdicionalMin) : undefined,
-        quantidade: quantidade != null ? Number(quantidade) : undefined,
-        brinquedoId: typeof brinquedoId === 'string' ? brinquedoId : undefined,
-        clienteId: typeof clienteId === 'string' ? clienteId : undefined,
+        tempoInicialMin: tempoInicialMin ?? undefined,
+        tempoAdicionalMin: tempoAdicionalMin ?? undefined,
+        quantidade: quantidade ?? undefined,
+        brinquedoId: brinquedoId ?? undefined,
+        clienteId: clienteId ?? undefined,
         status: 'aberto',
-        valorCalculado: Number(valorCalculado),
+        valorCalculado,
         caixaAberturaId,
       },
       include: {
