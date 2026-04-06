@@ -21,14 +21,14 @@ export function validateEnv(): void {
     }
   }
 
-  // Check JWT_SECRET strength in production
+  // Check JWT_SECRET strength in production — hard-fail, not just warn
   if (process.env.NODE_ENV === 'production') {
     if (process.env.JWT_SECRET) {
       if (process.env.JWT_SECRET.length < 32) {
-        warnings.push('JWT_SECRET should be at least 32 characters long in production')
+        missing.push('JWT_SECRET must be at least 32 characters long in production')
       }
       if (process.env.JWT_SECRET === 'your-super-secret-jwt-key-change-in-production') {
-        warnings.push('JWT_SECRET is using the default value. Change it in production!')
+        missing.push('JWT_SECRET is using the default insecure value — set a real secret before deploying')
       }
     }
 

@@ -1,17 +1,28 @@
 import { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/errorHandler'
 import { AuthRequest } from '../middleware/auth'
 
+const loginSchema = z.object({
+  username: z.string().min(1, 'Username é obrigatório').max(100),
+  password: z.string().min(1, 'Senha é obrigatória').max(200),
+})
+
+const validarSchema = z.object({
+  apelido: z.string().min(1, 'Apelido é obrigatório').max(100),
+  password: z.string().min(1, 'Senha é obrigatória').max(200),
+})
+
 export const authController = {
   async login(req: Request, res: Response) {
-    const { username, password } = req.body
-
-    if (!username || !password) {
-      throw new AppError(400, 'Username e senha são obrigatórios')
+    const parsed = loginSchema.safeParse(req.body)
+    if (!parsed.success) {
+      throw new AppError(400, parsed.error.issues.map((i) => i.message).join(', '))
     }
+    const { username, password } = parsed.data
 
     // SQLite doesn't support case-insensitive mode, so we'll search normally
     // For PostgreSQL, you can add mode: 'insensitive'
@@ -177,11 +188,11 @@ export const authController = {
   },
 
   async validarDesconto(req: Request, res: Response) {
-    const { apelido, password } = req.body
-
-    if (!apelido || !password) {
-      throw new AppError(400, 'Apelido e senha são obrigatórios')
+    const parsed = validarSchema.safeParse(req.body)
+    if (!parsed.success) {
+      throw new AppError(400, parsed.error.issues.map((i) => i.message).join(', '))
     }
+    const { apelido, password } = parsed.data
 
     const usuario = await prisma.usuario.findFirst({
       where: {
@@ -214,11 +225,11 @@ export const authController = {
   },
 
   async validarAdmin(req: Request, res: Response) {
-    const { apelido, password } = req.body
-
-    if (!apelido || !password) {
-      throw new AppError(400, 'Apelido e senha são obrigatórios')
+    const parsed = validarSchema.safeParse(req.body)
+    if (!parsed.success) {
+      throw new AppError(400, parsed.error.issues.map((i) => i.message).join(', '))
     }
+    const { apelido, password } = parsed.data
 
     const usuario = await prisma.usuario.findFirst({
       where: { OR: [{ apelido }, { nomeCompleto: apelido }] },

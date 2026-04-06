@@ -16,6 +16,8 @@ export class AppError extends Error {
   }
 }
 
+const isDevelopment = process.env.NODE_ENV === 'development'
+
 export function errorHandler(
   err: Error | AppError,
   req: Request,
@@ -36,26 +38,23 @@ export function errorHandler(
       error: err.message,
       statusCode: err.statusCode,
       ...(err.code && { code: err.code }),
-      ...(process.env.NODE_ENV === 'development' && {
+      ...(isDevelopment && {
         stack: err.stack,
       }),
     })
   }
 
-  // Unexpected error
+  // Unexpected error — omit req.body to avoid logging passwords in plaintext
   logger.error('Unexpected error', err, {
     path: req.path,
     method: req.method,
-    body: req.body,
     query: req.query,
   })
 
   return res.status(500).json({
-    error: process.env.NODE_ENV === 'production'
-      ? 'Internal server error'
-      : err.message,
+    error: isDevelopment ? err.message : 'Internal server error',
     statusCode: 500,
-    ...(process.env.NODE_ENV === 'development' && {
+    ...(isDevelopment && {
       stack: err.stack,
       message: err.message,
     }),
