@@ -1,6 +1,7 @@
 services:
+  # Major do Postgres tem de coincidir com o volume (dados PG 17 não arrancam com imagem 16).
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: playground-postgres-prod
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-playground}
@@ -10,11 +11,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-playground}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-playground} -d ${POSTGRES_DB:-playground}"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 120s
     networks:
       - playground-network
 
