@@ -23,7 +23,7 @@ export type PermissoesModulo = {
     brinquedos?: boolean
   }
   clientes?: boolean
-  descontoAutorizado?: boolean
+  autorizarCancelamentosEDescontos?: boolean
   cortesia?: boolean
 }
 
