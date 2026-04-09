@@ -79,7 +79,7 @@ export const authController = {
         brinquedos: usuario.parametrosBrinquedos,
       },
       clientes: usuario.clientes,
-      descontoAutorizado: (usuario as { descontoAutorizado?: boolean }).descontoAutorizado,
+      autorizarCancelamentosEDescontos: (usuario as { autorizarCancelamentosEDescontos?: boolean }).autorizarCancelamentosEDescontos,
       cortesia: (usuario as { cortesia?: boolean }).cortesia ?? false,
     }
 
@@ -139,7 +139,7 @@ export const authController = {
         parametrosFormasPagamento: true,
         parametrosBrinquedos: true,
         clientes: true,
-        descontoAutorizado: true,
+        autorizarCancelamentosEDescontos: true,
         cortesia: true,
       },
     })
@@ -173,7 +173,7 @@ export const authController = {
         brinquedos: usuario.parametrosBrinquedos,
       },
       clientes: usuario.clientes,
-      descontoAutorizado: usuario.descontoAutorizado,
+      autorizarCancelamentosEDescontos: usuario.autorizarCancelamentosEDescontos,
       cortesia: (usuario as { cortesia?: boolean }).cortesia ?? false,
     }
 
@@ -216,9 +216,9 @@ export const authController = {
       throw new AppError(401, 'Credenciais inválidas')
     }
 
-    const descontoAutorizado = (usuario as { descontoAutorizado?: boolean }).descontoAutorizado
-    if (!descontoAutorizado) {
-      throw new AppError(403, 'Este usuário não tem permissão para autorizar descontos')
+    const autorizarCancelamentosEDescontos = (usuario as { autorizarCancelamentosEDescontos?: boolean }).autorizarCancelamentosEDescontos
+    if (!autorizarCancelamentosEDescontos) {
+      throw new AppError(403, 'Este usuário não tem permissão para autorizar cancelamentos e descontos')
     }
 
     res.json({ ok: true })

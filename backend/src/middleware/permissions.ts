@@ -19,7 +19,7 @@ type PermissionKey =
   | 'parametrosFormasPagamento'
   | 'parametrosBrinquedos'
   | 'clientes'
-  | 'descontoAutorizado'
+  | 'autorizarCancelamentosEDescontos'
 
 function checkPermission(permissoes: NonNullable<AuthRequest['user']>['permissoes'], permission: PermissionKey): boolean {
   if (!permissoes) return false
@@ -29,7 +29,7 @@ function checkPermission(permissoes: NonNullable<AuthRequest['user']>['permissoe
   if (permission === 'lancamento') return permissoes.lancamento === true
   if (permission === 'relatorios') return permissoes.relatorios === true
   if (permission === 'clientes') return permissoes.clientes === true
-  if (permission === 'descontoAutorizado') return permissoes.descontoAutorizado === true
+  if (permission === 'autorizarCancelamentosEDescontos') return permissoes.autorizarCancelamentosEDescontos === true
 
   // Permissões de caixa
   if (permission === 'caixaAbertura') return permissoes.caixa?.abertura === true

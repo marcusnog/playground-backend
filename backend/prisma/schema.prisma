@@ -182,7 +182,7 @@ model Usuario {
   parametrosFormasPagamento Boolean @default(false)
   parametrosBrinquedos Boolean @default(false)
   clientes            Boolean  @default(false)
-  descontoAutorizado  Boolean  @default(false)  // pode autorizar desconto em pagamentos
+  autorizarCancelamentosEDescontos Boolean @default(false) // pode autorizar cancelamentos sem cobrança e descontos em pagamentos
   cortesia            Boolean  @default(false)  // pode gerar códigos de cortesia
 
   caixa               Caixa?   @relation(fields: [caixaId], references: [id])

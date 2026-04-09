@@ -24,7 +24,7 @@ const permissionsSchema = z.object({
   parametrosFormasPagamento: z.boolean().optional(),
   parametrosBrinquedos: z.boolean().optional(),
   clientes: z.boolean().optional(),
-  descontoAutorizado: z.boolean().optional(),
+  autorizarCancelamentosEDescontos: z.boolean().optional(),
   cortesia: z.boolean().optional(),
   caixaId: z.string().uuid().optional().nullable(),
 })
@@ -63,7 +63,7 @@ export const usuariosController = {
         parametrosFormasPagamento: true,
         parametrosBrinquedos: true,
         clientes: true,
-        descontoAutorizado: true,
+        autorizarCancelamentosEDescontos: true,
         cortesia: true,
         createdAt: true,
         updatedAt: true,
@@ -102,6 +102,7 @@ export const usuariosController = {
         parametrosBrinquedos: true,
         clientes: true,
         cortesia: true,
+        autorizarCancelamentosEDescontos: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -141,7 +142,7 @@ export const usuariosController = {
       parametrosFormasPagamento,
       parametrosBrinquedos,
       clientes,
-      descontoAutorizado,
+      autorizarCancelamentosEDescontos,
       cortesia,
     } = parsed.data
 
@@ -181,7 +182,7 @@ export const usuariosController = {
         parametrosFormasPagamento: parametrosFormasPagamento || false,
         parametrosBrinquedos: parametrosBrinquedos || false,
         clientes: clientes || false,
-        descontoAutorizado: descontoAutorizado || false,
+        autorizarCancelamentosEDescontos: autorizarCancelamentosEDescontos || false,
         cortesia: cortesia || false,
       },
       select: {
@@ -207,7 +208,7 @@ export const usuariosController = {
         parametrosFormasPagamento: true,
         parametrosBrinquedos: true,
         clientes: true,
-        descontoAutorizado: true,
+        autorizarCancelamentosEDescontos: true,
         cortesia: true,
         bloqueado: true,
         createdAt: true,
@@ -251,7 +252,7 @@ export const usuariosController = {
       parametrosFormasPagamento,
       parametrosBrinquedos,
       clientes,
-      descontoAutorizado,
+      autorizarCancelamentosEDescontos,
       cortesia,
     } = parsed.data
 
@@ -278,7 +279,7 @@ export const usuariosController = {
       parametrosFormasPagamento,
       parametrosBrinquedos,
       clientes,
-      descontoAutorizado,
+      autorizarCancelamentosEDescontos,
       cortesia,
     }
 
@@ -323,7 +324,7 @@ export const usuariosController = {
         parametrosFormasPagamento: true,
         parametrosBrinquedos: true,
         clientes: true,
-        descontoAutorizado: true,
+        autorizarCancelamentosEDescontos: true,
         cortesia: true,
         bloqueado: true,
         createdAt: true,

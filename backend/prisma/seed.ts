@@ -93,7 +93,7 @@ async function main() {
       parametrosFormasPagamento: true,
       parametrosBrinquedos: true,
       clientes: true,
-      descontoAutorizado: true,
+      autorizarCancelamentosEDescontos: true,
       cortesia: true,
     },
     create: {
@@ -117,7 +117,7 @@ async function main() {
       parametrosFormasPagamento: true,
       parametrosBrinquedos: true,
       clientes: true,
-      descontoAutorizado: true,
+      autorizarCancelamentosEDescontos: true,
       cortesia: true,
     },
   })
@@ -153,7 +153,7 @@ async function main() {
       parametrosFormasPagamento: true,
       parametrosBrinquedos: true,
       clientes: true,
-      descontoAutorizado: true,
+      autorizarCancelamentosEDescontos: true,
       cortesia: true,
     },
     create: {
@@ -177,7 +177,7 @@ async function main() {
       parametrosFormasPagamento: true,
       parametrosBrinquedos: true,
       clientes: true,
-      descontoAutorizado: true,
+      autorizarCancelamentosEDescontos: true,
       cortesia: true,
     },
   })
