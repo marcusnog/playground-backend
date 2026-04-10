@@ -6,11 +6,19 @@ import { AppError } from '../middleware/errorHandler'
 import { AuthRequest } from '../middleware/auth'
 import { getSessionReference, resolveCaixaAbertura } from '../lib/caixaAbertura'
 
+const optionalWhatsappSchema = z.preprocess(
+  (value) => {
+    if (value == null) return ''
+    return String(value).trim()
+  },
+  z.string().max(20).refine((value) => value === '' || value.length >= 10, 'Whatsapp inválido')
+)
+
 const lancamentoCreateSchema = z.object({
   nomeCrianca: z.string().min(1, 'Nome da criança é obrigatório').max(150).trim(),
   nomeResponsavel: z.string().min(1, 'Nome do responsável é obrigatório').max(150).trim(),
   tipoParente: z.string().max(50).trim().optional().nullable(),
-  whatsappResponsavel: z.string().min(10, 'Whatsapp inválido').max(20),
+  whatsappResponsavel: optionalWhatsappSchema,
   numeroPulseira: z.string().max(20).optional().nullable(),
   tempoSolicitadoMin: z.number().int().min(0).max(600).optional().nullable(),
   tempoInicialMin: z.number().int().min(0).max(600).optional().nullable(),
