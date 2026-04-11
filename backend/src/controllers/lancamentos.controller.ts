@@ -6,19 +6,21 @@ import { AppError } from '../middleware/errorHandler'
 import { AuthRequest } from '../middleware/auth'
 import { getSessionReference, resolveCaixaAbertura } from '../lib/caixaAbertura'
 
-const optionalWhatsappSchema = z.preprocess(
-  (value) => {
-    if (value == null) return ''
-    return String(value).trim()
-  },
-  z.string().max(20).refine((value) => value === '' || value.length >= 10, 'Whatsapp inválido')
+const normalizeString = (value: unknown) => {
+  if (value == null) return ''
+  return String(value).trim()
+}
+
+const requiredWhatsappSchema = z.preprocess(
+  normalizeString,
+  z.string().min(10, 'Whatsapp invalido').max(20, 'Whatsapp invalido')
 )
 
 const lancamentoCreateSchema = z.object({
-  nomeCrianca: z.string().min(1, 'Nome da criança é obrigatório').max(150).trim(),
-  nomeResponsavel: z.string().min(1, 'Nome do responsável é obrigatório').max(150).trim(),
+  nomeCrianca: z.string().min(1, 'Nome da crianca e obrigatorio').max(150).trim(),
+  nomeResponsavel: z.preprocess(normalizeString, z.string().max(150)),
   tipoParente: z.string().max(50).trim().optional().nullable(),
-  whatsappResponsavel: optionalWhatsappSchema,
+  whatsappResponsavel: requiredWhatsappSchema,
   numeroPulseira: z.string().max(20).optional().nullable(),
   tempoSolicitadoMin: z.number().int().min(0).max(600).optional().nullable(),
   tempoInicialMin: z.number().int().min(0).max(600).optional().nullable(),
@@ -26,7 +28,7 @@ const lancamentoCreateSchema = z.object({
   quantidade: z.number().int().min(1).max(100).optional(),
   brinquedoId: z.string().uuid().optional(),
   clienteId: z.string().uuid().optional(),
-  valorCalculado: z.number().min(0, 'Valor inválido').max(99999.99),
+  valorCalculado: z.number().min(0, 'Valor invalido').max(99999.99),
   dataHora: z.string().optional(),
 })
 
@@ -107,7 +109,7 @@ export const lancamentosController = {
       },
     })
     if (!lancamento) {
-      throw new AppError(404, 'Lançamento não encontrado')
+      throw new AppError(404, 'Lancamento nao encontrado')
     }
     res.json(lancamento)
   },
@@ -233,11 +235,11 @@ export const lancamentosController = {
     })
 
     if (!lancamento) {
-      throw new AppError(404, 'Lançamento não encontrado')
+      throw new AppError(404, 'Lancamento nao encontrado')
     }
 
     if (lancamento.status !== 'aberto') {
-      throw new AppError(400, 'Apenas lançamentos abertos podem ser pagos')
+      throw new AppError(400, 'Apenas lancamentos abertos podem ser pagos')
     }
 
     const resolvedCaixaAberturaId = await resolveSessionForLancamento(
@@ -253,7 +255,7 @@ export const lancamentosController = {
         .filter((p) => p.formaPagamentoId && Number.isFinite(p.valor) && p.valor >= 0)
 
       if (limpos.length === 0) {
-        throw new AppError(400, 'Informe ao menos uma forma de pagamento válida')
+        throw new AppError(400, 'Informe ao menos uma forma de pagamento valida')
       }
 
       const soma = limpos.reduce((acc, item) => acc + item.valor, 0)
@@ -268,7 +270,7 @@ export const lancamentosController = {
       })
       const map = new Map(formas.map((f) => [f.id, f.descricao]))
       if (formas.length !== new Set(limpos.map((p) => p.formaPagamentoId)).size) {
-        throw new AppError(400, 'Uma ou mais formas de pagamento não foram encontradas')
+        throw new AppError(400, 'Uma ou mais formas de pagamento nao foram encontradas')
       }
 
       const pagamentosJson = JSON.stringify(
@@ -318,14 +320,14 @@ export const lancamentosController = {
     if (isCortesia) {
       const codigo = String(codigoCortesia || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
       if (codigo.length !== 8) {
-        throw new AppError(400, 'Informe o código de cortesia de 8 dígitos')
+        throw new AppError(400, 'Informe o codigo de cortesia de 8 digitos')
       }
       const cortesia = await prisma.cortesia.findUnique({ where: { codigo } })
       if (!cortesia) {
-        throw new AppError(400, 'Código de cortesia não encontrado')
+        throw new AppError(400, 'Codigo de cortesia nao encontrado')
       }
       if (cortesia.usado) {
-        throw new AppError(400, 'Este código de cortesia já foi utilizado')
+        throw new AppError(400, 'Este codigo de cortesia ja foi utilizado')
       }
       await prisma.cortesia.update({
         where: { id: cortesia.id },
@@ -362,11 +364,11 @@ export const lancamentosController = {
     })
 
     if (!lancamento) {
-      throw new AppError(404, 'Lançamento não encontrado')
+      throw new AppError(404, 'Lancamento nao encontrado')
     }
 
     if (lancamento.status !== 'aberto') {
-      throw new AppError(400, 'Apenas lançamentos abertos podem ser cancelados')
+      throw new AppError(400, 'Apenas lancamentos abertos podem ser cancelados')
     }
 
     const caixaAberturaId = await resolveSessionForLancamento(
