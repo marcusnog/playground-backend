@@ -13,7 +13,7 @@ const normalizeString = (value: unknown) => {
 
 const requiredWhatsappSchema = z.preprocess(
   normalizeString,
-  z.string().min(10, 'Whatsapp invalido').max(20, 'Whatsapp invalido')
+  z.string()
 )
 
 const lancamentoCreateSchema = z.object({
