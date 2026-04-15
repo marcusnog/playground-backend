@@ -131,6 +131,7 @@ model Lancamento {
   tipoParente         String?  // pai, mae, avo, ava, tio, tia, outro
   whatsappResponsavel String
   numeroPulseira      String?
+  criancasAdicionaisJson String?  // JSON: [{nomeCrianca: string, numeroPulseira?: string}]
   tempoSolicitadoMin  Int?     // null -> Tempo Livre ou modo quantidade
   tempoInicialMin     Int?     // minutos do bloco inicial
   tempoAdicionalMin   Int?     // minutos adicionais (total = tempoInicialMin + tempoAdicionalMin)
