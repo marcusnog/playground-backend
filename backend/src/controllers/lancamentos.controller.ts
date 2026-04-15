@@ -22,6 +22,7 @@ const lancamentoCreateSchema = z.object({
   tipoParente: z.string().max(50).trim().optional().nullable(),
   whatsappResponsavel: requiredWhatsappSchema,
   numeroPulseira: z.string().max(20).optional().nullable(),
+  criancasAdicionaisJson: z.string().optional().nullable(),
   tempoSolicitadoMin: z.number().int().min(0).max(600).optional().nullable(),
   tempoInicialMin: z.number().int().min(0).max(600).optional().nullable(),
   tempoAdicionalMin: z.number().int().min(0).max(600).optional().nullable(),
@@ -126,6 +127,7 @@ export const lancamentosController = {
       tipoParente,
       whatsappResponsavel,
       numeroPulseira,
+      criancasAdicionaisJson,
       tempoSolicitadoMin,
       tempoInicialMin,
       tempoAdicionalMin,
@@ -150,6 +152,7 @@ export const lancamentosController = {
         tipoParente: tipoParente ?? null,
         whatsappResponsavel,
         numeroPulseira: numeroPulseira ?? null,
+        criancasAdicionaisJson: criancasAdicionaisJson ?? null,
         tempoSolicitadoMin: tempoTotal ?? null,
         tempoInicialMin: tempoInicialMin ?? undefined,
         tempoAdicionalMin: tempoAdicionalMin ?? undefined,
@@ -177,6 +180,7 @@ export const lancamentosController = {
       tipoParente,
       whatsappResponsavel,
       numeroPulseira,
+      criancasAdicionaisJson,
       tempoSolicitadoMin,
       tempoInicialMin,
       tempoAdicionalMin,
@@ -195,6 +199,7 @@ export const lancamentosController = {
     if (tipoParente !== undefined) updateData.tipoParente = tipoParente
     if (whatsappResponsavel !== undefined) updateData.whatsappResponsavel = whatsappResponsavel
     if (numeroPulseira !== undefined) updateData.numeroPulseira = numeroPulseira
+    if (criancasAdicionaisJson !== undefined) updateData.criancasAdicionaisJson = criancasAdicionaisJson
     if (tempoSolicitadoMin !== undefined) updateData.tempoSolicitadoMin = tempoSolicitadoMin
     if (tempoInicialMin !== undefined) updateData.tempoInicialMin = tempoInicialMin
     if (tempoAdicionalMin !== undefined) updateData.tempoAdicionalMin = tempoAdicionalMin
@@ -354,6 +359,87 @@ export const lancamentosController = {
     })
 
     res.json(lancamentoAtualizado)
+  },
+
+  async pagarMultiplos(req: AuthRequest, res: Response): Promise<void> {
+    const { ids, pagamentos, valorTotal } = req.body as {
+      ids?: unknown
+      pagamentos?: unknown
+      valorTotal?: unknown
+    }
+
+    if (!Array.isArray(ids) || ids.length < 2) {
+      throw new AppError(400, 'Informe ao menos 2 IDs de lancamentos')
+    }
+    if (!Array.isArray(pagamentos) || pagamentos.length === 0) {
+      throw new AppError(400, 'Informe ao menos uma forma de pagamento')
+    }
+    if (typeof valorTotal !== 'number' || valorTotal < 0) {
+      throw new AppError(400, 'Valor total invalido')
+    }
+
+    const linhas = (pagamentos as Array<{ formaPagamentoId: unknown; valor: unknown }>)
+      .filter((p) => typeof p.formaPagamentoId === 'string' && typeof p.valor === 'number')
+      .map((p) => ({ formaPagamentoId: String(p.formaPagamentoId), valor: Number(p.valor) }))
+      .filter((p) => p.formaPagamentoId && Number.isFinite(p.valor) && p.valor >= 0)
+
+    if (linhas.length === 0) {
+      throw new AppError(400, 'Nenhuma forma de pagamento valida informada')
+    }
+
+    const soma = linhas.reduce((acc, l) => acc + l.valor, 0)
+    if (Math.abs(soma - valorTotal) > 0.01) {
+      throw new AppError(400, `A soma dos pagamentos (R$ ${soma.toFixed(2)}) nao confere com o valor total (R$ ${valorTotal.toFixed(2)})`)
+    }
+
+    const formaIds = [...new Set(linhas.map((l) => l.formaPagamentoId))]
+    const formasDb = await prisma.formaPagamento.findMany({
+      where: { id: { in: formaIds } },
+      select: { id: true, descricao: true },
+    })
+    if (formasDb.length !== formaIds.length) {
+      throw new AppError(400, 'Uma ou mais formas de pagamento nao foram encontradas')
+    }
+    const formaMap = new Map(formasDb.map((f) => [f.id, f.descricao]))
+    const pagamentosJson = JSON.stringify(
+      linhas.map((l) => ({ formaPagamentoId: l.formaPagamentoId, descricao: formaMap.get(l.formaPagamentoId) ?? l.formaPagamentoId, valor: l.valor }))
+    )
+
+    const lancamentos = await prisma.lancamento.findMany({
+      where: { id: { in: ids as string[] } },
+    })
+
+    if (lancamentos.length !== ids.length) {
+      throw new AppError(404, 'Um ou mais lancamentos nao foram encontrados')
+    }
+
+    const naoAbertos = lancamentos.filter((l) => l.status !== 'aberto')
+    if (naoAbertos.length > 0) {
+      throw new AppError(400, `Os seguintes lancamentos nao estao abertos: ${naoAbertos.map((l) => l.id).join(', ')}`)
+    }
+
+    const resolvedCaixaAberturaId = await resolveSessionForLancamento(
+      req,
+      req.body as Record<string, unknown>,
+      lancamentos[0].caixaAberturaId
+    )
+
+    const updated = await prisma.$transaction(
+      lancamentos.map((l) =>
+        prisma.lancamento.update({
+          where: { id: l.id },
+          data: {
+            status: 'pago',
+            pagamentosJson,
+            valorCalculado: l.valorCalculado,
+            caixaAberturaId: resolvedCaixaAberturaId,
+          },
+          include: { brinquedo: true, cliente: true, formaPagamento: true },
+        })
+      )
+    )
+
+    res.json({ lancamentos: updated, total: updated.length })
   },
 
   async cancelar(req: AuthRequest, res: Response) {

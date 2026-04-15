@@ -7,6 +7,12 @@ export const lancamentosRoutes = Router()
 
 lancamentosRoutes.get('/', authenticateToken, lancamentosController.list)
 lancamentosRoutes.get('/abertos', authenticateToken, lancamentosController.getAbertos)
+lancamentosRoutes.post(
+  '/pagar-multiplos',
+  authenticateToken,
+  requirePermission('lancamento'),
+  lancamentosController.pagarMultiplos
+)
 lancamentosRoutes.get('/:id', authenticateToken, lancamentosController.getById)
 lancamentosRoutes.post(
   '/',
