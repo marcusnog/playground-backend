@@ -401,10 +401,6 @@ export const lancamentosController = {
       throw new AppError(400, 'Uma ou mais formas de pagamento nao foram encontradas')
     }
     const formaMap = new Map(formasDb.map((f) => [f.id, f.descricao]))
-    const pagamentosJson = JSON.stringify(
-      linhas.map((l) => ({ formaPagamentoId: l.formaPagamentoId, descricao: formaMap.get(l.formaPagamentoId) ?? l.formaPagamentoId, valor: l.valor }))
-    )
-
     const lancamentos = await prisma.lancamento.findMany({
       where: { id: { in: ids as string[] } },
     })
@@ -425,18 +421,27 @@ export const lancamentosController = {
     )
 
     const updated = await prisma.$transaction(
-      lancamentos.map((l) =>
-        prisma.lancamento.update({
-          where: { id: l.id },
+      lancamentos.map((lancamento) => {
+        // Distribui o pagamento proporcionalmente pelo valorCalculado de cada lancamento
+        const proporcao = valorTotal > 0 ? lancamento.valorCalculado / valorTotal : 1 / lancamentos.length
+        const pagamentosJsonProporcional = JSON.stringify(
+          linhas.map((p) => ({
+            formaPagamentoId: p.formaPagamentoId,
+            descricao: formaMap.get(p.formaPagamentoId) ?? p.formaPagamentoId,
+            valor: Math.round(p.valor * proporcao * 100) / 100,
+          }))
+        )
+        return prisma.lancamento.update({
+          where: { id: lancamento.id },
           data: {
             status: 'pago',
-            pagamentosJson,
-            valorCalculado: l.valorCalculado,
+            pagamentosJson: pagamentosJsonProporcional,
+            valorCalculado: lancamento.valorCalculado,
             caixaAberturaId: resolvedCaixaAberturaId,
           },
           include: { brinquedo: true, cliente: true, formaPagamento: true },
         })
-      )
+      })
     )
 
     res.json({ lancamentos: updated, total: updated.length })
