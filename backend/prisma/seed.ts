@@ -58,7 +58,7 @@ async function main() {
       valorInicialReais: 20,
       valorCicloMinutos: 10,
       valorCicloReais: 7.5,
-      cicloToleranciaMinutos: 3,
+      cicloToleranciaMinutos: 0,
       empresaNome: 'Parque Infantil',
       empresaCnpj: '00.000.000/0000-00',
       empresaLogoUrl: '',
