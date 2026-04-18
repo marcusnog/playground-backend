@@ -183,6 +183,8 @@ export const caixasController = {
         aberturaId = abertura.id
         caixaIdParaFechar = abertura.caixaId
 
+        console.log('[FECHAR CAIXA] aberturaId:', abertura.id)
+
         const lancamentosAbertos = await tx.lancamento.count({
           where: { caixaAberturaId: abertura.id, status: 'aberto' },
         })
@@ -191,10 +193,32 @@ export const caixasController = {
           where: { caixaAberturaId: abertura.id, status: 'aberto' },
         })
 
+        console.log('[FECHAR CAIXA] lancamentosAbertos:', lancamentosAbertos, '| estacionamentosAbertos:', lancamentosEstacionamentoAbertos)
+
+        if (lancamentosAbertos > 0) {
+          const itens = await tx.lancamento.findMany({
+            where: { caixaAberturaId: abertura.id, status: 'aberto' },
+            select: { id: true, nomeCrianca: true, status: true },
+          })
+          console.log('[FECHAR CAIXA] lancamentos abertos:', JSON.stringify(itens))
+        }
+        if (lancamentosEstacionamentoAbertos > 0) {
+          const itens = await tx.lancamentoEstacionamento.findMany({
+            where: { caixaAberturaId: abertura.id, status: 'aberto' },
+            select: { id: true, placa: true, status: true },
+          })
+          console.log('[FECHAR CAIXA] estacionamentos abertos:', JSON.stringify(itens))
+        }
+
         if (lancamentosAbertos + lancamentosEstacionamentoAbertos > 0) {
+          const partes: string[] = []
+          if (lancamentosAbertos > 0)
+            partes.push(`${lancamentosAbertos} acompanhamento(s) de brinquedo`)
+          if (lancamentosEstacionamentoAbertos > 0)
+            partes.push(`${lancamentosEstacionamentoAbertos} acompanhamento(s) de estacionamento`)
           throw new AppError(
             400,
-            'Não é possível fechar o caixa com acompanhamentos em aberto. Encerre ou cancele todos os acompanhamentos antes.',
+            `Não é possível fechar o caixa com acompanhamentos em aberto: ${partes.join(' e ')}. Encerre ou cancele todos antes.`,
           )
         }
 
