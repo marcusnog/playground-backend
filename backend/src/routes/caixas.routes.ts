@@ -18,6 +18,12 @@ caixasRoutes.post(
   caixasController.abrir
 )
 caixasRoutes.post(
+  '/:id/abertura/split',
+  authenticateToken,
+  requirePermission('caixaFechamento'),
+  caixasController.split
+)
+caixasRoutes.post(
   '/fechamento',
   authenticateToken,
   requirePermission('caixaFechamento'),

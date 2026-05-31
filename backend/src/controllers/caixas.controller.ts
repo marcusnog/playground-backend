@@ -378,6 +378,88 @@ export const caixasController = {
     res.json(movimentos)
   },
 
+  async split(req: AuthRequest, res: Response) {
+    const userId = getAuthenticatedUserId(req)
+    const { id } = req.params
+    const { splitDataHora } = req.body as { splitDataHora?: string }
+
+    if (!splitDataHora) {
+      throw new AppError(400, 'splitDataHora é obrigatório')
+    }
+
+    const splitAt = new Date(splitDataHora)
+    if (Number.isNaN(splitAt.getTime())) {
+      throw new AppError(400, 'splitDataHora inválido')
+    }
+
+    const now = new Date()
+    if (splitAt >= now) {
+      throw new AppError(400, 'splitDataHora deve ser anterior ao momento atual')
+    }
+
+    const resultado = await prisma.$transaction(async (tx) => {
+      const abertura = await tx.caixaAbertura.findFirst({
+        where: { caixaId: id, status: 'aberto' },
+        orderBy: { dataAbertura: 'desc' },
+      })
+
+      if (!abertura) {
+        throw new AppError(404, 'Nenhuma abertura ativa encontrada para este caixa')
+      }
+
+      if (splitAt <= abertura.dataAbertura) {
+        throw new AppError(400, 'splitDataHora deve ser posterior à abertura atual')
+      }
+
+      await tx.caixaAbertura.update({
+        where: { id: abertura.id },
+        data: {
+          status: 'fechado',
+          dataFechamento: splitAt,
+          usuarioFechamentoId: userId,
+        },
+      })
+
+      const novaDataAbertura = new Date(splitAt.getTime() + 1)
+
+      const novaAbertura = await tx.caixaAbertura.create({
+        data: {
+          caixaId: id,
+          usuarioAberturaId: userId,
+          dataAbertura: novaDataAbertura,
+          valorInicial: abertura.valorInicial,
+          status: 'aberto',
+        },
+      })
+
+      const [lancamentosMovidos, estacionamentosMovidos, movimentosMovidos] = await Promise.all([
+        tx.lancamento.updateMany({
+          where: { caixaAberturaId: abertura.id, dataHora: { gt: splitAt } },
+          data: { caixaAberturaId: novaAbertura.id },
+        }),
+        tx.lancamentoEstacionamento.updateMany({
+          where: { caixaAberturaId: abertura.id, dataHora: { gt: splitAt } },
+          data: { caixaAberturaId: novaAbertura.id },
+        }),
+        tx.movimentoCaixa.updateMany({
+          where: { caixaAberturaId: abertura.id, dataHora: { gt: splitAt } },
+          data: { caixaAberturaId: novaAbertura.id },
+        }),
+      ])
+
+      return {
+        aberturaAntigaId: abertura.id,
+        novaAberturaId: novaAbertura.id,
+        splitDataHora: splitAt,
+        lancamentosMovidos: lancamentosMovidos.count,
+        estacionamentosMovidos: estacionamentosMovidos.count,
+        movimentosMovidos: movimentosMovidos.count,
+      }
+    })
+
+    res.json(resultado)
+  },
+
   async create(req: Request, res: Response) {
     const { nome, data, bloqueado, brinquedoIds } = req.body as {
       nome?: string
